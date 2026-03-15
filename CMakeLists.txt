@@ -40,12 +40,12 @@ endif()
 
 add_executable(ProtoEngine ${PROTOENGINE_SOURCES})
 
-target_include_directories(ProtoEngine PRIVATE 
+target_include_directories(ProtoEngine PRIVATE
   "${CMAKE_SOURCE_DIR}/src"
   "${CMAKE_SOURCE_DIR}/dependencies/glfw/include"
 )
 
-target_link_libraries(ProtoEngine PRIVATE 
+target_link_libraries(ProtoEngine PRIVATE
   OpenGL::GL
   glad::glad
   glfw
