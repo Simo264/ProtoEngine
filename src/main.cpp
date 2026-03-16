@@ -6,6 +6,7 @@
 #include "basic_types.hpp"
 #include "pipeline.hpp"
 #include "buffer.hpp"
+#include "vertex_array.hpp"
 
 auto CURRENT_PATH = std::filesystem::current_path();
 auto SHADERS_DIR = CURRENT_PATH / "shaders";
@@ -91,18 +92,13 @@ int main()
   ibo.create();
   ibo.allocate_storage(sizeof(indices), indices, BufferUsageFlags::DynamicStorage);
 
-  u32 vao;
-  glCreateVertexArrays(1, &vao);
-  // Enable the attribute
-  glEnableVertexArrayAttrib(vao, 0); 
-  // Specify the attribute format (no buffer info)
-  glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
-  // Bind the buffer to binding point 0
-  glVertexArrayVertexBuffer(vao, 0, vbo.id(), 0, 3 * sizeof(f32));
-  // Link attribute 0 to buffer binding point 0
-  glVertexArrayAttribBinding(vao, 0, 0);
-  // Bind the index buffer to the vao
-  glVertexArrayElementBuffer(vao, ibo.id());
+  auto vao = VerteArray{};
+  vao.create();
+  vao.enable_attrib(0);
+  vao.set_attrib_format_float(0, 3, VertexAttribType::Float, false, 0);  
+  vao.attach_vertex_buffer(0, vbo.id(), 0, 3 * sizeof(f32));
+  vao.link_attrib(0, 0);
+  vao.attach_index_buffer(ibo.id());
 
   while (!glfwWindowShouldClose(window))
   {
@@ -110,9 +106,8 @@ int main()
     glClear(GL_COLOR_BUFFER_BIT);
     
     pipeline_object.bind();
-    glBindVertexArray(vao);
+    vao.bind();
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    
     
     glfwSwapBuffers(window);
     glfwPollEvents();
