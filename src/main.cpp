@@ -4,7 +4,7 @@
 #include <print>
 
 #include "basic_types.hpp"
-#include "shader.hpp"
+#include "pipeline.hpp"
 
 auto CURRENT_PATH = std::filesystem::current_path();
 auto SHADERS_DIR = CURRENT_PATH / "shaders";

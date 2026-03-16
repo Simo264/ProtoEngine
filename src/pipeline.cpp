@@ -1,4 +1,4 @@
-#include "shader.hpp"
+#include "pipeline.hpp"
 
 #include <glad/gl.h>
 
