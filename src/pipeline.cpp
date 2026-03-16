@@ -11,14 +11,21 @@
 //            Shader
 // ====================================
 
-void Shader::create(ShaderType type)
+bool ShaderObject::is_valid() const
 {
-  m_id = glCreateShader(static_cast<i32>(type));
-  if(!is_valid())
-    std::println("Error on creating shader object ({})", m_id);
+  return m_id != 0 && glIsShader(m_id) == GL_TRUE;
 }
 
-void Shader::destroy()
+void ShaderObject::create(ShaderStage stage)
+{
+  m_id = glCreateShader(static_cast<i32>(stage));
+  if(!is_valid())
+    std::println("Error on creating shader object ({})", m_id);
+  else
+  	std::println("Created new shader object ({})", m_id);
+}
+
+void ShaderObject::destroy()
 {
   if(!is_valid())
   {
@@ -30,12 +37,7 @@ void Shader::destroy()
   m_id = 0;
 }
 
-bool Shader::is_valid() const
-{
-  return m_id != 0 && m_id != GL_INVALID_ENUM;
-}
-
-void Shader::load_source_code(const std::filesystem::path& glsl_file) const
+void ShaderObject::load_source_code(const std::filesystem::path& glsl_file) const
 {
   if(!is_valid())
   {
@@ -59,7 +61,7 @@ void Shader::load_source_code(const std::filesystem::path& glsl_file) const
   glShaderSource(m_id, 1, &data, nullptr);
 }
 
-void Shader::compile() const
+void ShaderObject::compile() const
 {
   if(!is_valid())
   {
@@ -69,7 +71,7 @@ void Shader::compile() const
   glCompileShader(m_id);
 }
 
-bool Shader::check_compile_status() const
+bool ShaderObject::check_compile_status() const
 {
   if(!is_valid())
     return false;
@@ -79,7 +81,7 @@ bool Shader::check_compile_status() const
   return status == GL_TRUE;
 }
 
-std::string Shader::get_compile_log() const
+std::string ShaderObject::get_compile_log() const
 {
   if(!is_valid())
     return std::format("Invalid shader object ({})", m_id);
@@ -94,10 +96,14 @@ std::string Shader::get_compile_log() const
   return log;
 }
 
+// ====================================
+//            ShaderProgram
+// ====================================
 
-// ====================================
-//            Program
-// ====================================
+bool ShaderProgram::is_valid() const
+{
+	return m_id != 0 && glIsProgram(m_id) == GL_TRUE;
+}
 
 void ShaderProgram::create()
 {
@@ -118,7 +124,7 @@ void ShaderProgram::destroy()
   m_id = 0;
 }
 
-void ShaderProgram::attach_shader(Shader shader) const
+void ShaderProgram::attach_shader(ShaderObject shader) const
 {
   if(!is_valid())
   {
@@ -128,7 +134,7 @@ void ShaderProgram::attach_shader(Shader shader) const
   glAttachShader(m_id, shader.id());
 }
 
-void ShaderProgram::detach_shader(Shader shader) const
+void ShaderProgram::detach_shader(ShaderObject shader) const
 {
   if(!is_valid())
   {
@@ -176,5 +182,111 @@ std::string ShaderProgram::get_link_log() const
 void ShaderProgram::use() const
 {
   glUseProgram(m_id);
+}
+
+void ShaderProgram::set_separable(bool flag) const
+{
+ if(!is_valid())
+  {
+    std::println("Cannot specify any parameter on an invalid shader program object ({})", m_id);
+    return;
+  }
+ 
+ glProgramParameteri(m_id, GL_PROGRAM_SEPARABLE, flag ? GL_TRUE : GL_FALSE);
+}
+
+// ====================================
+//            ProgramPipeline
+// ====================================
+
+bool ProgramPipelineObject::is_valid() const
+{
+	return m_id != 0 && glIsProgramPipeline(m_id) == GL_TRUE;
+}
+
+void ProgramPipelineObject::create()
+{
+	glCreateProgramPipelines(1, &m_id);
+	if(!is_valid())
+		std::println("Error on creating pipeline object ({})", m_id);
+	else
+		std::println("Created new pipeline object ({})", m_id);
+}
+
+void ProgramPipelineObject::destroy()
+{
+	if(!is_valid())
+	{
+		std::println("Cannot delete an invalid pipeline object ({})", m_id);
+		return;
+	}
+
+	glDeleteProgramPipelines(1, &m_id);
+	m_id = 0;
+}
+
+void ProgramPipelineObject::bind_program_stage(PipelineStage stage, ShaderProgram program) const
+{
+	if(!is_valid())
+	{
+		std::println("Cannot bind a stage on an invalid pipeline object ({})", m_id);
+		return;
+	}
+	
+	glUseProgramStages(m_id, static_cast<u32>(stage), program.id());
+}
+
+void ProgramPipelineObject::bind() const
+{
+	glBindProgramPipeline(m_id);
+}
+
+void ProgramPipelineObject::unbind() const
+{
+	glBindProgramPipeline(0);
+}
+
+bool ProgramPipelineObject::validate_pipeline() const
+{
+	if(!is_valid()) 
+		return false;
+	
+	this->bind();
+	
+	glValidateProgramPipeline(m_id);
+	auto status = 0;
+	glGetProgramPipelineiv(m_id, GL_VALIDATE_STATUS, &status);
+	
+	this->unbind();
+	
+	return status == GL_TRUE;
+}
+
+std::string ProgramPipelineObject::get_validation_status() const
+{
+	if(!is_valid()) 
+		return std::format("Invalid pipeline object ({})", m_id);
+	
+	auto log_len = 0;
+  glGetProgramPipelineiv(m_id, GL_INFO_LOG_LENGTH, &log_len);
+  if(log_len > 0)
+  {
+  	std::string log(log_len, '\0');
+   	glGetProgramPipelineInfoLog(m_id, log_len, NULL, log.data());
+    return log;
+  }
+  
+  return "";
+}
+
+void ProgramPipelineObject::set_active_program(ShaderProgram program) const
+{
+	if(!is_valid())
+	{
+		std::println("Cannot set on an invalid pipeline object ({})", m_id);
+		return;
+	}
+	
+	glActiveShaderProgram(m_id, program.id());
 }
 
