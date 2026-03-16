@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(glad_loader NONE LANGUAGES C CXX)
+project(glad_loader LANGUAGES C CXX)
 
 set(GLAD_INCLUDE_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(GLAD_HEADER       "${GLAD_INCLUDE_DIR}/glad/gl.h")

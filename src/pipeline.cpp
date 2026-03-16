@@ -21,8 +21,6 @@ void ShaderObject::create(ShaderStage stage)
   m_id = glCreateShader(static_cast<i32>(stage));
   if(!is_valid())
     std::println("Error on creating shader object ({})", m_id);
-  else
-  	std::println("Created new shader object ({})", m_id);
 }
 
 void ShaderObject::destroy()
@@ -209,8 +207,6 @@ void ProgramPipelineObject::create()
 	glCreateProgramPipelines(1, &m_id);
 	if(!is_valid())
 		std::println("Error on creating pipeline object ({})", m_id);
-	else
-		std::println("Created new pipeline object ({})", m_id);
 }
 
 void ProgramPipelineObject::destroy()
