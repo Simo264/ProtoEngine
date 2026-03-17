@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <filesystem>
 #include <print>
+#include <array>
 
 #include "basic_types.hpp"
 #include "glm/fwd.hpp"
@@ -13,6 +14,7 @@
 #include <glm/mat3x3.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <glm/trigonometric.hpp>
 
 constexpr auto WINDOW_W = 1080;
 constexpr auto WINDOW_H = 720;
@@ -21,26 +23,36 @@ constexpr auto camera_eye   = glm::vec3(0.0f, 0.0f, 6.f);
 constexpr auto camera_gaze  = glm::vec3(0.0f, 0.0f, -1.0f);
 constexpr auto camera_up    = glm::vec3(0.0f, 1.0f, 0.0f);
 
-constexpr auto l = -0.1f;
-constexpr auto r =  0.1f;
-constexpr auto b = -0.1f;
-constexpr auto t =  0.1f;
-constexpr auto n =  1.0f;
-constexpr auto f =  100.0f;
+constexpr f32 fov_y = glm::radians(45.0f);
+constexpr f32 aspect = (f32)WINDOW_W / (f32)WINDOW_H;
 
-constexpr glm::mat4 m_ortho = glm::mat4(
+constexpr f32 n =  0.1f;
+constexpr f32 f =  100.0f;
+const f32 t =  n * glm::tan(fov_y / 2.0f);
+const f32 b = -t;
+const f32 r =  t * aspect;
+const f32 l = -r;
+
+// constexpr auto l = -0.1f;
+// constexpr auto r =  0.1f;
+// constexpr auto b = -0.1f;
+// constexpr auto t =  0.1f;
+// constexpr auto n =  1.0f;
+// constexpr auto f =  100.0f;
+
+const glm::mat4 m_ortho = glm::mat4(
   glm::vec4(2.0f / (r - l), 0.0f, 0.0f, 0.0f),
   glm::vec4(0.0f, 2.0f / (t - b), 0.0f, 0.0f),
   glm::vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f),
   glm::vec4(-(r + l) / (r - l), -(t + b) / (t - b), -(f + n) / (f - n), 1.0f)
 );
-constexpr glm::mat4 P = {
-	glm::vec4(n, 0, 0, 0),
-  glm::vec4(0, n, 0, 0),
-  glm::vec4(0, 0, n + f, -1), 
-  glm::vec4(0, 0, f * n, 0)
+const glm::mat4 P = {
+	glm::vec4(n, 0,  0,  0),
+ 	glm::vec4(0, n,  0,  0),
+ 	glm::vec4(0, 0,  n+f, -1),
+ 	glm::vec4(0, 0,  f*n, 0)
 };
-constexpr auto m_per = m_ortho * P;
+const auto m_per = m_ortho * P;
 
 auto CURRENT_PATH = std::filesystem::current_path();
 auto SHADERS_DIR = CURRENT_PATH / "shaders";
@@ -94,6 +106,20 @@ ProgramPipelineObject create_pipeline_object()
    	std::println("pipeline object status: {}", pipeline_object.get_validation_status());
   
   return pipeline_object;
+}
+
+void apply_model_transformation(f32* vertices, i32 n_vertices, const glm::mat4& M)
+{
+ 	for (int i = 0; i < n_vertices; i++)
+  {
+    auto& x = vertices[i*3 + 0];
+    auto& y = vertices[i*3 + 1];
+    auto& z = vertices[i*3 + 2];
+    glm::vec4 p = M * glm::vec4(x, y, z, 1.0f);
+    x = p.x;
+    y = p.y;
+    z = p.z;
+  }
 }
 
 void frame_to_canonical(f32* vertices, i32 n_vertices)
@@ -271,7 +297,7 @@ int main()
 
   // let's define our vertices in local space
   constexpr auto n_vertices = 8;
-  f32 vertices[3 * n_vertices] = {
+  constexpr auto vertices = std::array<f32, 3 * n_vertices>{
     -0.5f, -0.5f,  0.5f,
      0.5f, -0.5f,  0.5f,
      0.5f,  0.5f,  0.5f,
@@ -281,7 +307,7 @@ int main()
      0.5f,  0.5f, -0.5f,
     -0.5f,  0.5f, -0.5f
   };
-  constexpr u32 indices[] = {
+  constexpr auto indices = std::array<u32, 36>{
     0, 1, 2,   2, 3, 0,
     1, 5, 6,   6, 2, 1,
     5, 4, 7,   7, 6, 5,
@@ -290,18 +316,15 @@ int main()
     4, 5, 1,   1, 0, 4
   };
   
-  frame_to_canonical(vertices, n_vertices);
-  canonical_to_camera(vertices, n_vertices);
-  apply_persp_projection(vertices, n_vertices);
-  //apply_ortho_projection(vertices, n_vertices);
+  auto vertices_buffer = vertices;
 
   auto vbo = Buffer{};
   vbo.create();
-  vbo.allocate_storage(sizeof(vertices), vertices, BufferUsageFlags::DynamicStorage);
+  vbo.allocate_storage(sizeof(vertices_buffer), vertices_buffer.data(), BufferUsageFlags::DynamicStorage);
   
   auto ibo = Buffer{};
   ibo.create();
-  ibo.allocate_storage(sizeof(indices), indices, BufferUsageFlags::DynamicStorage);
+  ibo.allocate_storage(sizeof(indices), indices.data(), BufferUsageFlags::DynamicStorage);
 
   auto vao = VerteArray{};
   vao.create();
@@ -311,14 +334,70 @@ int main()
   vao.link_attrib(0, 0);
   vao.attach_index_buffer(ibo.id());
   
+  auto cube_position = glm::vec3(0.f);
+  auto cube_rotation = glm::vec3(0.f); // degrees
+  auto cube_scale = glm::vec3(1.f);
+  
   while (!glfwWindowShouldClose(window))
   {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+   
+    vertices_buffer = vertices;
+    
+    cube_scale.x = glm::sin(glfwGetTime());
+  
+    auto S = glm::mat3 {
+     	cube_scale.x, 0.0f, 0.0f, 
+     	0.0f, cube_scale.y, 0.0f, 
+     	0.0f, 0.0f, cube_scale.z 
+    };
+    
+    f32 cx = glm::cos(cube_rotation.x);
+    f32 sx = glm::sin(cube_rotation.x);
+    auto R_x = glm::mat3 {
+	    1.0f, 0.0f, 0.0f,
+	    0.0f, cx,    sx,
+	    0.0f, -sx,   cx
+    };
+    
+    f32 cy = glm::cos(cube_rotation.y);
+    f32 sy = glm::sin(cube_rotation.y);
+    auto R_y = glm::mat3 {
+	    cy,  0.0f, -sy,
+	    0.0f, 1.0f, 0.0f,
+	    sy,  0.0f,  cy
+    };
+    
+    
+    f32 cz = glm::cos(cube_rotation.z);
+    f32 sz = glm::sin(cube_rotation.z);
+    auto R_z = glm::mat3 {
+	    cz,  	sz,  	0.0f,
+	   -sz,  	cz,  	0.0f,
+	   	0.0f, 0.0f, 1.0f 
+    };
+    
+    auto R = R_z * R_y * R_x;
+    auto RS = R * S;
+    
+    auto M = glm::mat4 {
+      glm::vec4(RS[0], 0.0f),
+      glm::vec4(RS[1], 0.0f),
+      glm::vec4(RS[2], 0.0f),
+      glm::vec4(cube_position, 1.0f)    
+    }; 
+    
+    apply_model_transformation(vertices_buffer.data(), n_vertices, M);
+    frame_to_canonical(vertices_buffer.data(), n_vertices);
+    canonical_to_camera(vertices_buffer.data(), n_vertices);
+    apply_persp_projection(vertices_buffer.data(), n_vertices);
+    //apply_ortho_projection(vertices_buffer.data(), n_vertices);
+    vbo.update_data(0, vertices_buffer.size(), vertices_buffer.data());
     
     pipeline_object.bind();
     vao.bind();
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     
     glfwSwapBuffers(window);
     glfwPollEvents();
