@@ -4,6 +4,7 @@
 #include <print>
 
 #include "basic_types.hpp"
+#include "glm/fwd.hpp"
 #include "pipeline.hpp"
 #include "buffer.hpp"
 #include "vertex_array.hpp"
@@ -13,8 +14,33 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
-constexpr auto WINDOW_H = 720;
 constexpr auto WINDOW_W = 1080;
+constexpr auto WINDOW_H = 720;
+
+constexpr auto camera_eye   = glm::vec3(0.0f, 0.0f, 6.f);
+constexpr auto camera_gaze  = glm::vec3(0.0f, 0.0f, -1.0f);
+constexpr auto camera_up    = glm::vec3(0.0f, 1.0f, 0.0f);
+
+constexpr auto l = -0.1f;
+constexpr auto r =  0.1f;
+constexpr auto b = -0.1f;
+constexpr auto t =  0.1f;
+constexpr auto n =  1.0f;
+constexpr auto f =  100.0f;
+
+constexpr glm::mat4 m_ortho = glm::mat4(
+  glm::vec4(2.0f / (r - l), 0.0f, 0.0f, 0.0f),
+  glm::vec4(0.0f, 2.0f / (t - b), 0.0f, 0.0f),
+  glm::vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f),
+  glm::vec4(-(r + l) / (r - l), -(t + b) / (t - b), -(f + n) / (f - n), 1.0f)
+);
+constexpr glm::mat4 P = {
+	glm::vec4(n, 0, 0, 0),
+  glm::vec4(0, n, 0, 0),
+  glm::vec4(0, 0, n + f, -1), 
+  glm::vec4(0, 0, f * n, 0)
+};
+constexpr auto m_per = m_ortho * P;
 
 auto CURRENT_PATH = std::filesystem::current_path();
 auto SHADERS_DIR = CURRENT_PATH / "shaders";
@@ -81,7 +107,7 @@ void frame_to_canonical(f32* vertices, i32 n_vertices)
   // P_xyz = | z_u   z_v   z_w   z_e | | w_p | 
   //         | 0     0     0     1   | | 1   | 
    
-  constexpr glm::vec3 e = glm::vec3(2.0f, 1.0f, -5.0f); 
+  constexpr glm::vec3 e = glm::vec3(0.0f, 0.0f, 0.0f); 
   constexpr glm::vec3 u = glm::vec3(1.0f, 0.0f, 0.0f); 
   constexpr glm::vec3 v = glm::vec3(0.0f, 1.0f, 0.0f);
   constexpr glm::vec3 w = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -94,16 +120,16 @@ void frame_to_canonical(f32* vertices, i32 n_vertices)
   
   for(i32 i = 0; i < n_vertices; i++)
   {
-    auto& x_local = vertices[i*3+ 0];
-    auto& y_local = vertices[i*3+ 1];
-    auto& z_local = vertices[i*3+ 2];
+    auto& x = vertices[i*3+ 0];
+    auto& y = vertices[i*3+ 1];
+    auto& z = vertices[i*3+ 2];
     
-    glm::vec3 p_local = glm::vec3(x_local, y_local, z_local);
+    glm::vec3 p_local = glm::vec3(x, y, z);
     glm::vec4 p_world = ftc * glm::vec4(p_local, 1);
     
-    x_local = p_world.x;
-    y_local = p_world.y;
-    z_local = p_world.z;
+    x = p_world.x;
+    y = p_world.y;
+    z = p_world.z;
   }
 }
 
@@ -116,11 +142,8 @@ void canonical_to_camera(f32* vertices, i32 n_vertices)
   // - w = - (g/||g||)
   // - u = (t x w) / (|| t x w ||)
   // - v = w x u
-  constexpr auto eye   = glm::vec3(0.0f, 0.0f, 5.0f);
-  constexpr auto gaze  = glm::vec3(0.0f, 0.0f, -1.0f);
-  constexpr auto up    = glm::vec3(0.0f, 1.0f, 0.0f);
-  glm::vec3 w = -glm::normalize(gaze);
-  glm::vec3 u = glm::normalize(glm::cross(up, w));
+  glm::vec3 w = -glm::normalize(camera_gaze);
+  glm::vec3 u = glm::normalize(glm::cross(camera_up, w));
   glm::vec3 v = glm::cross(w, u);
   
   // We just need to convert these coordinates into into the camera frame coordinate system. 
@@ -135,25 +158,72 @@ void canonical_to_camera(f32* vertices, i32 n_vertices)
     glm::vec4(u.x, v.x, w.x, 0.0f),
     glm::vec4(u.y, v.y, w.y, 0.0f),
     glm::vec4(u.z, v.z, w.z, 0.0f),
-    glm::vec4(-glm::dot(u, eye), -glm::dot(v, eye), -glm::dot(w, eye), 1.0f)
+    glm::vec4(-glm::dot(u, camera_eye), -glm::dot(v, camera_eye), -glm::dot(w, camera_eye), 1.0f)
   };
   
   for(int i = 0; i < n_vertices; i++)
   {
-    auto& x_world = vertices[i*3 + 0];
-    auto& y_world = vertices[i*3 + 1];
-    auto& z_world = vertices[i*3 + 2];
+    auto& x = vertices[i*3 + 0];
+    auto& y = vertices[i*3 + 1];
+    auto& z = vertices[i*3 + 2];
     
-    auto p_world = glm::vec4(x_world, y_world, z_world, 1);
+    auto p_world = glm::vec4(x, y, z, 1);
     auto p_cam = m_cam * p_world;
     
-    x_world = p_cam.x;
-    y_world = p_cam.y;
-    z_world = p_cam.z; 
+    x = p_cam.x;
+    y = p_cam.y;
+    z = p_cam.z; 
   }
 }
 
-void camera_to_ortho_proj(f32* vertices, i32 n_vertices)
+void apply_persp_projection(f32* vertices, i32 n_vertices)
+{
+	// In perspective, the further away an object is (z larger), the smaller it should appear on the screen. 
+	// Mathematically, this means that the coordinates x and y must be divided by z (proportionally 1/z).
+	// 
+	// To implement perspective in 3D we use the convention of the camera at the origin looking towards -z. 
+	// We define two planes: the near plane (n) and the far plane (f) which are the same as seen in orthographic projection. 
+	// The resulting matrix is this:
+	// 
+  //     | n		0 	0		0 	|
+  //     | 0  	n  	0 	0 	|
+  // P = | 0  	0  	n+f -fn |
+  //     | 0  	0   1   0   |
+  // 
+  // The perspective matrix simply maps the perspective view volume (or frustum) to the orthographic view volume 
+  // which is axis-aligned box, and then we can use the orthographic transform to get the canonical view volume. 
+  // Concatenating P with M_ortho we get the perspective projection matrix:
+  // 
+  //   					| (2n)/(r-l)   	0         		(l+r)/(l-r) 	0 					|
+  //            | 0         		(2n)/(t-b)   	(b+t)/(b-t) 	0						|
+  // M_per =  	| 0         		0         		(f+n)/(n-f)		(2n)/(f-n)	|
+  //            | 0         		0         		1         		0           |
+  
+  for(int i = 0; i < n_vertices; i++)
+  {
+    auto& x = vertices[i*3 + 0];
+    auto& y = vertices[i*3 + 1];
+    auto& z = vertices[i*3 + 2];
+    
+    auto p_cam = glm::vec4(x, y, z, 1);
+    auto p_proj = m_per * p_cam; // [-1, +1]
+    
+    if (p_proj.w != 0.0f) 
+    {
+      x = p_proj.x / p_proj.w;
+      y = p_proj.y / p_proj.w;
+      z = p_proj.z / p_proj.w;
+    } 
+    else 
+    {
+      x = p_proj.x; 
+      y = p_proj.y; 
+      z = p_proj.z;
+    }
+  }
+}
+
+void apply_ortho_projection(f32* vertices, i32 n_vertices)
 {
   // The projection transformation, that moves points from camera space to the view volume.
   // In the case of orthographic view volume, this volume is an axis-aligned box with where its 
@@ -167,70 +237,18 @@ void camera_to_ortho_proj(f32* vertices, i32 n_vertices)
   // M_ortho =  | 0         0         2/(n-f)   -(n+f)/(n-f) |
   //            | 0         0         0         1            |
  
-  constexpr f32 l = -5.0f, r = 5.0f;
-  constexpr f32 b = -5.0f, t = 5.0f;
-  constexpr f32 n =  0.1f, f = 100.0f;
-  constexpr glm::mat4 m_ortho = glm::mat4(
-    glm::vec4(2.0f / (r - l), 0.0f, 0.0f, 0.0f),
-    glm::vec4(0.0f, 2.0f / (t - b), 0.0f, 0.0f),
-    glm::vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f),
-    glm::vec4(-(r + l) / (r - l), -(t + b) / (t - b), -(f + n) / (f - n), 1.0f)
-  );
-  
   for(int i = 0; i < n_vertices; i++)
   {
-    auto& x_cam = vertices[i*3 + 0];
-    auto& y_cam = vertices[i*3 + 1];
-    auto& z_cam = vertices[i*3 + 2];
+    auto& x = vertices[i*3 + 0];
+    auto& y = vertices[i*3 + 1];
+    auto& z = vertices[i*3 + 2];
     
-    auto p_cam = glm::vec4(x_cam, y_cam, z_cam, 1);
+    auto p_cam = glm::vec4(x, y, z, 1);
     auto p_proj = m_ortho * p_cam; // [-1, +1]
     
-    x_cam = p_proj.x;
-    y_cam = p_proj.y;
-    z_cam = p_proj.z;
-  }
-}
-
-void projected_to_screen(f32* vertices, u32 n_vertices)
-{
-  // The viewport transformation, that maps the view volume to screen space.
-  // The view volume is a three-dimensional unit cube. The viewport transformation deals with 
-  // projecting that volume onto a 2D screen.
-  // In practice we will have to "squash" the cube along the z axis to have a flat image. 
-  // For this reason we will need a matrix M_vp which only takes care of mapping the coordinates 
-  // (x,y) in [-1, +1]^2 (the front square of the cube) onto the monitor surface 
-  // [-0.5, w-0.5] x [-0.5, h-0.5].
-  // At this point we are able to construct the viewport transformation matrix 
-  // M_vp matrix represents a combination of scale, to adapt the view volume to the screen, 
-  // and a translation, to center everything on the pixel grid:
-  // 
-  //        | w/2   0     0   (w-1)/2 |
-  //        | 0     h/2   0   (h-1)/2 |
-  // M_vp = | 0     0     1   0       |
-  //        | 0     0     0   1       |
-  
-  constexpr auto w = static_cast<f32>(WINDOW_W);
-  constexpr auto h = static_cast<f32>(WINDOW_H);
-  constexpr glm::mat4 m_vp = glm::mat4(
-    glm::vec4(w / 2.0f, 0.0f, 0.0f, 0.0f),
-    glm::vec4(0.0f, h / 2.0f, 0.0f, 0.0f),
-    glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-    glm::vec4((w - 1.0f) / 2.0f, (h - 1.0f) / 2.0f, 0.0f, 1.0f)
-  );
-  
-  for(u32 i = 0; i < n_vertices; i++) 
-  {
-    auto& x_projected = vertices[i*3 + 0];
-    auto& y_projected = vertices[i*3 + 1];  
-    auto& z_projected = vertices[i*3 + 2];
-    
-    auto p_proj = glm::vec4(x_projected, y_projected, z_projected, 1.0f);
-    auto p_screen = m_vp * p_proj;
-    
-    x_projected = p_screen.x;
-    y_projected = p_screen.y;
-    z_projected = p_screen.z;
+    x = p_proj.x;
+    y = p_proj.y;
+    z = p_proj.z;
   }
 }
 
@@ -244,6 +262,9 @@ int main()
   glfwMakeContextCurrent(window);
 
   gladLoadGL(glfwGetProcAddress);
+  
+  glfwSetFramebufferSizeCallback(window, []([[ maybe_unused ]]GLFWwindow* window, int width, int height){ glViewport(0, 0, width, height); });
+  glViewport(0, 0, WINDOW_W, WINDOW_H);
   
   // Let's define the pipeline
   auto pipeline_object = create_pipeline_object();
@@ -271,10 +292,9 @@ int main()
   
   frame_to_canonical(vertices, n_vertices);
   canonical_to_camera(vertices, n_vertices);
-  camera_to_ortho_proj(vertices, n_vertices);
-  //projected_to_screen(vertices, n_vertices);
+  apply_persp_projection(vertices, n_vertices);
+  //apply_ortho_projection(vertices, n_vertices);
 
-  
   auto vbo = Buffer{};
   vbo.create();
   vbo.allocate_storage(sizeof(vertices), vertices, BufferUsageFlags::DynamicStorage);
