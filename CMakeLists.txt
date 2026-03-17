@@ -27,16 +27,22 @@ set(GLFW_INSTALL OFF CACHE BOOL "Disable GLFW install target" FORCE)
 FetchContent_Declare(
   glfw
   GIT_REPOSITORY https://github.com/glfw/glfw.git
-  GIT_TAG 3.4
+  GIT_TAG        3.4
   GIT_SHALLOW    TRUE
   GIT_PROGRESS   TRUE
-  SOURCE_DIR ${CMAKE_SOURCE_DIR}/dependencies/glfw
+  SOURCE_DIR     ${CMAKE_SOURCE_DIR}/dependencies/glfw
 )
-FetchContent_GetProperties(glfw)
-if(NOT glfw_POPULATED)
-  message("Fetching glfw")
-  FetchContent_MakeAvailable(glfw)
-endif()
+FetchContent_MakeAvailable(glfw)
+
+# include GLM
+FetchContent_Declare(
+	glm
+	GIT_REPOSITORY	https://github.com/g-truc/glm.git
+	GIT_TAG         0af55ccecd98d4e5a8d1fad7de25ba429d60e863
+	GIT_PROGRESS    TRUE
+	SOURCE_DIR      ${CMAKE_SOURCE_DIR}/dependencies/glm
+)
+FetchContent_MakeAvailable(glm)
 
 add_executable(ProtoEngine ${PROTOENGINE_SOURCES})
 
@@ -49,6 +55,7 @@ target_link_libraries(ProtoEngine PRIVATE
   OpenGL::GL
   glad::glad
   glfw
+  glm::glm
 )
 
 target_compile_options(ProtoEngine PRIVATE -Wall -Wextra -Wpedantic)
