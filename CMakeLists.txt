@@ -16,9 +16,6 @@ file(GLOB_RECURSE PROTOENGINE_SOURCES
 
 find_package(OpenGL REQUIRED)
 
-# include GLAD
-add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/glad")
-
 # include GLFW 3.4
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "Disable building GLFW docs" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "Disable building GLFW tests" FORCE)
@@ -44,6 +41,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
+add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/glad")
+add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/imgui")
+
 add_executable(ProtoEngine ${PROTOENGINE_SOURCES})
 
 target_include_directories(ProtoEngine PRIVATE
@@ -56,6 +56,7 @@ target_link_libraries(ProtoEngine PRIVATE
   glad::glad
   glfw
   glm::glm
+  imgui::imgui
 )
 
 target_compile_options(ProtoEngine PRIVATE -Wall -Wextra -Wpedantic)

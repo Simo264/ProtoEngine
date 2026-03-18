@@ -4,19 +4,20 @@ layout(location = 0) in vec3 in_local_pos;
 
 uniform mat4 mat_transform;
 uniform mat4 mat_ftc;
-uniform mat4 mat_cam;
+uniform mat4 mat_cam; 
 uniform mat4 mat_per;
-
+ 
 void main()
 {
-  vec4 local_pos = vec4(in_local_pos, 1.0f);
+  vec4 v_local_space = vec4(in_local_pos, 1.0f);
   // apply transform
-  local_pos = mat_transform * local_pos;
+  v_local_space = mat_transform * v_local_space;
   // frame to canonical space
-  vec4 global_pos = mat_ftc * local_pos;
+  vec4 v_global_space = mat_ftc * v_local_space;
   // canonical to camera space
-  vec4 camera_pos = mat_cam * global_pos;
+  vec4 v_camera_space = mat_cam * v_global_space;
   // camera to clip space (camera to perspective)
-  vec4 clip_pos = mat_per * camera_pos;
-  gl_Position = vec4(clip_pos);
+  vec4 v_clip_space = mat_per * v_camera_space;
+  
+  gl_Position = v_clip_space;
 }

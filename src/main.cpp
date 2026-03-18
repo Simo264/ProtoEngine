@@ -16,13 +16,17 @@
 #include <glm/vec4.hpp>
 #include <glm/trigonometric.hpp>
 
-constexpr auto WINDOW_W = 1080;
-constexpr auto WINDOW_H = 720;
-auto aspect_ratio = (f32)WINDOW_W / (f32)WINDOW_H;
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
-auto program_vertex_object = ShaderProgram{};
-auto program_fragment_object = ShaderProgram{};
-auto pipeline_object = ProgramPipelineObject{};
+static constexpr auto WINDOW_W = 640;
+static constexpr auto WINDOW_H = 480;
+static auto aspect_ratio = (f32)WINDOW_W / (f32)WINDOW_H;
+
+static auto program_vertex_object = ShaderProgram{};
+static auto program_fragment_object = ShaderProgram{};
+static auto pipeline_object = ProgramPipelineObject{};
 
 void create_pipeline_object()
 {
@@ -120,54 +124,69 @@ glm::mat4 calculate_transformation_matrix(const glm::vec3& position, const glm::
   return M;
 }
 
-void apply_model_transformation(f32* vertices, i32 n_vertices, const glm::mat4& M)
+constexpr glm::mat4 calculate_frame_to_canonical()
 {
- 	for (int i = 0; i < n_vertices; i++)
-  {
-    auto& x = vertices[i*4 + 0];
-    auto& y = vertices[i*4 + 1];
-    auto& z = vertices[i*4 + 2];
-    glm::vec4 p = M * glm::vec4(x, y, z, 1.0f);
-    x = p.x;
-    y = p.y;
-    z = p.z;
-  }
+	// let's transform the vertices from local space to global space.
+	// The frame-to-canonical matrix takes a point expressed in the local system (e,u,v,w) and converts it into the global system 
+	// (o,x,y,z):
+	// 
+	//         | x_u   x_v   x_w   x_e | | u_p | 
+	//         | y_u   y_v   y_w   y_e | | v_p | 
+	// P_xyz = | z_u   z_v   z_w   z_e | | w_p | 
+	//         | 0     0     0     1   | | 1   | 
+	
+	constexpr glm::vec3 frame_e = glm::vec3(0.0f, 0.0f, 0.0f); 
+	constexpr glm::vec3 frame_u = glm::vec3(1.0f, 0.0f, 0.0f); 
+	constexpr glm::vec3 frame_v = glm::vec3(0.0f, 1.0f, 0.0f);
+	constexpr glm::vec3 frame_w = glm::vec3(0.0f, 0.0f, 1.0f);
+	constexpr glm::mat4 m_ftc = {
+	  glm::vec4(frame_u, 0.0f),
+	  glm::vec4(frame_v, 0.0f),
+	  glm::vec4(frame_w, 0.0f),
+	  glm::vec4(frame_e, 1.0f)
+	};
+	return m_ftc;
 }
 
 int main() 
 {
   glfwInit();
- 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-  GLFWwindow* window = glfwCreateWindow(WINDOW_W, WINDOW_H, "Hello World", NULL, NULL);
+  GLFWwindow* window = glfwCreateWindow(WINDOW_W, WINDOW_H, "Proto engine", NULL, NULL);
   glfwMakeContextCurrent(window);
-
   gladLoadGL(glfwGetProcAddress);
-  
   glfwSetFramebufferSizeCallback(window, []([[ maybe_unused ]]GLFWwindow* window, int width, int height){ 
     glViewport(0, 0, width, height); 
-    aspect_ratio = (f32)width / (f32)height;
-    init_camera(0.1f, 100.0f, 45.0f, aspect_ratio);
+    aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
   });
   glViewport(0, 0, WINDOW_W, WINDOW_H);
   
-  init_camera(0.1f, 100.0f, 45.0f, aspect_ratio);
-  
+  // Setup Dear ImGui context
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO(); (void)io;
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+  ImGui::StyleColorsDark();
+  //ImGui::StyleColorsLight();
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplOpenGL3_Init("#version 460");
+	
   // Let's define the pipeline
   create_pipeline_object();
 
   // let's define our vertices in local space
   constexpr auto n_vertices = 8;
-  constexpr auto vertices = std::array<f32, 4 * n_vertices>{
-    -0.5f, -0.5f,  0.5f, 1.0f,
-     0.5f, -0.5f,  0.5f, 1.0f,
-     0.5f,  0.5f,  0.5f, 1.0f,
-    -0.5f,  0.5f,  0.5f, 1.0f,
-    -0.5f, -0.5f, -0.5f, 1.0f,
-     0.5f, -0.5f, -0.5f, 1.0f,
-     0.5f,  0.5f, -0.5f, 1.0f,
-    -0.5f,  0.5f, -0.5f, 1.0f
+  constexpr auto vertices = std::array<f32, 3 * n_vertices>{
+    -0.5f, -0.5f,  0.5f, 
+     0.5f, -0.5f,  0.5f, 
+     0.5f,  0.5f,  0.5f, 
+    -0.5f,  0.5f,  0.5f, 
+    -0.5f, -0.5f, -0.5f, 
+     0.5f, -0.5f, -0.5f, 
+     0.5f,  0.5f, -0.5f, 
+    -0.5f,  0.5f, -0.5f
   };
   constexpr auto indices = std::array<u32, 36>{
     0, 1, 2,   2, 3, 0,
@@ -189,10 +208,12 @@ int main()
   auto vao = VerteArray{};
   vao.create();
   vao.enable_attrib(0);
-  vao.set_attrib_format_float(0, 4, VertexAttribType::Float, false, 0);  
-  vao.attach_vertex_buffer(0, vbo.id(), 0, 4 * sizeof(f32));
+  vao.set_attrib_format_float(0, 3, VertexAttribType::Float, false, 0);  
+  vao.attach_vertex_buffer(0, vbo.id(), 0, 3 * sizeof(f32));
   vao.link_attrib(0, 0);
   vao.attach_index_buffer(ibo.id());
+  
+  auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
   
   auto cube_position = glm::vec3(0.f);
   auto cube_rotation = glm::vec3(0.f);
@@ -203,24 +224,45 @@ int main()
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
-    cube_scale.x = glm::abs(glm::sin(glfwGetTime()));
-    //cube_rotation.z = glm::radians(glfwGetTime()) * 32;
-    //cube_rotation.y = glm::cos(glfwGetTime());
+    // Start the Dear ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    
+    ImGui::Begin("Camera properties", nullptr);
+    auto fov = glm::degrees(camera.fovy); 
+    ImGui::DragFloat("Camera vertical FOV", &fov, 1.0f, 30.0f, 120.0f);
+    camera.fovy = glm::radians(fov);
+    ImGui::End();
+    
+    //cube_scale.x = glm::abs(glm::sin(glfwGetTime()));
+    cube_rotation.z = glm::radians(glfwGetTime()) * 32;
     
     auto mat_transform = calculate_transformation_matrix(cube_position, cube_scale, cube_rotation);
-    const auto& mat_ftc = get_mat_ftc();
-    const auto& mat_cam = get_mat_camera();
-    const auto& mat_persp = get_mat_perspective();
-    
+    constexpr auto mat_ftc = calculate_frame_to_canonical();
+    camera.aspect = aspect_ratio;
+    auto mat_camera = camera.canonical_to_camera();
+    auto mat_persp = camera.get_perspective();
+ 
     pipeline_object.bind();
     pipeline_object.set_active_program(program_vertex_object);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), &mat_transform[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_ftc"), &mat_ftc[0][0]);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_cam[0][0]);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
     
     vao.bind();
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+    
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+      GLFWwindow* backup_current_context = glfwGetCurrentContext();
+      ImGui::UpdatePlatformWindows();
+      ImGui::RenderPlatformWindowsDefault();
+      glfwMakeContextCurrent(backup_current_context);
+    }
     
     glfwSwapBuffers(window);
     glfwPollEvents();

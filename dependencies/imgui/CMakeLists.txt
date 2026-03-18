@@ -24,8 +24,8 @@ set_target_properties(imgui PROPERTIES
 )
 
 target_compile_definitions(imgui PUBLIC IMGUI_IMPL_OPENGL_LOADER_GLAD)
-target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../glad/include")
-target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../glfw/include")
+target_include_directories(imgui PUBLIC "${CMAKE_SOURCE_DIR}/dependencies/glad/include")
+target_include_directories(imgui PUBLIC "${CMAKE_SOURCE_DIR}/dependencies/glfw/include")
 
 find_package(OpenGL QUIET)
 target_link_libraries(imgui PUBLIC OpenGL::GL)
