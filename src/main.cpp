@@ -20,7 +20,11 @@ constexpr auto WINDOW_W = 1080;
 constexpr auto WINDOW_H = 720;
 auto aspect_ratio = (f32)WINDOW_W / (f32)WINDOW_H;
 
-ProgramPipelineObject create_pipeline_object()
+auto program_vertex_object = ShaderProgram{};
+auto program_fragment_object = ShaderProgram{};
+auto pipeline_object = ProgramPipelineObject{};
+
+void create_pipeline_object()
 {
   auto shaders_dir = std::filesystem::current_path() / "shaders";
   
@@ -40,7 +44,7 @@ ProgramPipelineObject create_pipeline_object()
   if(!status)
     std::println("Shader compilation error: {}", fragment_shader_obj.get_compile_log());
   
-  auto program_vertex_object = ShaderProgram{};
+  program_vertex_object = ShaderProgram{};
   program_vertex_object.create();
   program_vertex_object.attach_shader(vertex_shader_obj);
   program_vertex_object.set_separable(true);
@@ -51,7 +55,7 @@ ProgramPipelineObject create_pipeline_object()
   
   program_vertex_object.detach_shader(vertex_shader_obj);
   
-  auto program_fragment_object = ShaderProgram{};
+  program_fragment_object = ShaderProgram{};
   program_fragment_object.create();
   program_fragment_object.attach_shader(vertex_shader_obj);
   program_fragment_object.set_separable(true);
@@ -62,15 +66,58 @@ ProgramPipelineObject create_pipeline_object()
    
   program_fragment_object.detach_shader(vertex_shader_obj);
   
-  auto pipeline_object = ProgramPipelineObject{};
+  pipeline_object = ProgramPipelineObject{};
   pipeline_object.create();
   pipeline_object.bind_program_stage(PipelineStage::VertexShader, program_vertex_object);
   pipeline_object.bind_program_stage(PipelineStage::FragmentShader, program_fragment_object);
   status = pipeline_object.validate_pipeline();
   if(!status)
    	std::println("pipeline object status: {}", pipeline_object.get_validation_status());
+}
+
+glm::mat4 calculate_transformation_matrix(const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation)
+{
+  auto S = glm::mat3 {
+   	scale.x, 0.0f, 0.0f, 
+   	0.0f, scale.y, 0.0f, 
+   	0.0f, 0.0f, scale.z 
+  };
   
-  return pipeline_object;
+  f32 cx = glm::cos(rotation.x);
+  f32 sx = glm::sin(rotation.x);
+  auto R_x = glm::mat3 {
+    1.0f,  0.0f, 0.0f,
+    0.0f,  cx,   sx,
+    0.0f, -sx,   cx 
+  };
+  
+  f32 cy = glm::cos(rotation.y);
+  f32 sy = glm::sin(rotation.y);
+  auto R_y = glm::mat3 {
+	    cy,  0.0f, -sy,
+	    0.0f, 1.0f, 0.0f,
+	    sy,  0.0f,  cy
+  };
+  
+  f32 cz = glm::cos(rotation.z);
+  f32 sz = glm::sin(rotation.z);
+  auto R_z = glm::mat3 {
+	    cz,  	sz,  	0.0f,
+	   -sz,  	cz,  	0.0f,
+	   	0.0f, 0.0f, 1.0f 
+  };
+  
+  auto R = R_z * R_y * R_x;
+  auto RS = R * S;
+  
+  auto M = glm::mat4 {
+    glm::vec4(RS[0], 0.0f),
+    glm::vec4(RS[1], 0.0f),
+    glm::vec4(RS[2], 0.0f),
+    glm::vec4(position, 1.0f)    
+  }; 
+  
+  return M;
 }
 
 void apply_model_transformation(f32* vertices, i32 n_vertices, const glm::mat4& M)
@@ -101,14 +148,14 @@ int main()
   glfwSetFramebufferSizeCallback(window, []([[ maybe_unused ]]GLFWwindow* window, int width, int height){ 
     glViewport(0, 0, width, height); 
     aspect_ratio = (f32)width / (f32)height;
-    init_camera(aspect_ratio);
+    init_camera(0.1f, 100.0f, 45.0f, aspect_ratio);
   });
   glViewport(0, 0, WINDOW_W, WINDOW_H);
   
-  init_camera(aspect_ratio);
+  init_camera(0.1f, 100.0f, 45.0f, aspect_ratio);
   
   // Let's define the pipeline
-  auto pipeline_object = create_pipeline_object();
+  create_pipeline_object();
 
   // let's define our vertices in local space
   constexpr auto n_vertices = 8;
@@ -131,32 +178,9 @@ int main()
     4, 5, 1,   1, 0, 4
   };
   
-  auto vertices_buffer = vertices;
-  
-//  auto print_vertices = [&](const char* label) {
-//      printf("\n--- %s ---\n", label);
-//      for (int i = 0; i < n_vertices; i++) {
-//          printf("v%d: (%.3f, %.3f, %.3f, %.3f)\n", i,
-//              vertices_buffer[i*4+0],
-//              vertices_buffer[i*4+1],
-//              vertices_buffer[i*4+2],
-//              vertices_buffer[i*4+3]);
-//      }
-//  };
-  
-  frame_to_canonical(vertices_buffer.data(), n_vertices);
-  //print_vertices("world space");
-  
-  canonical_to_camera(vertices_buffer.data(), n_vertices);
-  //print_vertices("camera space");
-  
-  //camera_to_ortho(vertices_buffer.data(), n_vertices);
-  camera_to_perspective(vertices_buffer.data(), n_vertices);
-  // print_vertices("clip space");
-
   auto vbo = Buffer{};
   vbo.create();
-  vbo.allocate_storage(sizeof(vertices_buffer), vertices_buffer.data(), BufferUsageFlags::DynamicStorage);
+  vbo.allocate_storage(sizeof(vertices), vertices.data(), BufferUsageFlags::DynamicStorage);
   
   auto ibo = Buffer{};
   ibo.create();
@@ -170,67 +194,31 @@ int main()
   vao.link_attrib(0, 0);
   vao.attach_index_buffer(ibo.id());
   
-  //auto cube_position = glm::vec3(0.f);
-  //auto cube_rotation = glm::vec3(0.f); // degrees
-  //auto cube_scale = glm::vec3(1.f);
+  auto cube_position = glm::vec3(0.f);
+  auto cube_rotation = glm::vec3(0.f);
+  auto cube_scale = glm::vec3(1.f);
   
   while (!glfwWindowShouldClose(window))
   {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-   
-    // vertices_buffer = vertices;
     
-    // cube_scale.x = glm::sin(glfwGetTime());
-  
-    // auto S = glm::mat3 {
-    //  	cube_scale.x, 0.0f, 0.0f, 
-    //  	0.0f, cube_scale.y, 0.0f, 
-    //  	0.0f, 0.0f, cube_scale.z 
-    // };
-    // 
-    // f32 cx = glm::cos(cube_rotation.x);
-    // f32 sx = glm::sin(cube_rotation.x);
-    // auto R_x = glm::mat3 {
-	  //   1.0f, 0.0f, 0.0f,
-	  //   0.0f, cx,    sx,
-	  //   0.0f, -sx,   cx
-    // };
-    // 
-    // f32 cy = glm::cos(cube_rotation.y);
-    // f32 sy = glm::sin(cube_rotation.y);
-    // auto R_y = glm::mat3 {
-	  //   cy,  0.0f, -sy,
-	  //   0.0f, 1.0f, 0.0f,
-	  //   sy,  0.0f,  cy
-    // };
-    // 
-    // f32 cz = glm::cos(cube_rotation.z);
-    // f32 sz = glm::sin(cube_rotation.z);
-    // auto R_z = glm::mat3 {
-	  //   cz,  	sz,  	0.0f,
-	  //  -sz,  	cz,  	0.0f,
-	  //  	0.0f, 0.0f, 1.0f 
-    // };
-    // 
-    // auto R = R_z * R_y * R_x;
-    // auto RS = R * S;
-    // 
-    // auto M = glm::mat4 {
-    //   glm::vec4(RS[0], 0.0f),
-    //   glm::vec4(RS[1], 0.0f),
-    //   glm::vec4(RS[2], 0.0f),
-    //   glm::vec4(cube_position, 1.0f)    
-    // }; 
+    cube_scale.x = glm::abs(glm::sin(glfwGetTime()));
+    //cube_rotation.z = glm::radians(glfwGetTime()) * 32;
+    //cube_rotation.y = glm::cos(glfwGetTime());
     
-    // apply_model_transformation(vertices_buffer.data(), n_vertices, M);
-    // frame_to_canonical(vertices_buffer.data(), n_vertices);
-    // canonical_to_camera(vertices_buffer.data(), n_vertices);
-    // apply_persp_projection(vertices_buffer.data(), n_vertices);
-    // apply_ortho_projection(vertices_buffer.data(), n_vertices);
-    // vbo.update_data(0, vertices_buffer.size(), vertices_buffer.data());
+    auto mat_transform = calculate_transformation_matrix(cube_position, cube_scale, cube_rotation);
+    const auto& mat_ftc = get_mat_ftc();
+    const auto& mat_cam = get_mat_camera();
+    const auto& mat_persp = get_mat_perspective();
     
     pipeline_object.bind();
+    pipeline_object.set_active_program(program_vertex_object);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), &mat_transform[0][0]);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_ftc"), &mat_ftc[0][0]);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_cam[0][0]);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
+    
     vao.bind();
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     

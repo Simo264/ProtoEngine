@@ -1,29 +1,67 @@
 #include "camera.hpp"
 
-#include <glm/mat4x4.hpp>
 #include <glm/trigonometric.hpp>
 
 extern i32 WINDOW_W;
 extern i32 WINDOW_H;
 extern f32 aspect;
 
-constexpr auto camera_eye   = glm::vec3(0.0f, 0.0f, 4.0f);
+constexpr glm::vec3 frame_e = glm::vec3(0.0f, 0.0f, 0.0f); 
+constexpr glm::vec3 frame_u = glm::vec3(1.0f, 0.0f, 0.0f); 
+constexpr glm::vec3 frame_v = glm::vec3(0.0f, 1.0f, 0.0f);
+constexpr glm::vec3 frame_w = glm::vec3(0.0f, 0.0f, 1.0f);
+constexpr glm::mat4 mat_ftc = {
+  glm::vec4(frame_u, 0.0f),
+  glm::vec4(frame_v, 0.0f),
+  glm::vec4(frame_w, 0.0f),
+  glm::vec4(frame_e, 1.0f)
+};
+
+constexpr auto camera_eye   = glm::vec3(0.0f, 0.0f, 5.0f);
 constexpr auto camera_gaze  = glm::vec3(0.0f, 0.0f, -1.0f);
 constexpr auto camera_up    = glm::vec3(0.0f, 1.0f, 0.0f);
+const auto camera_w = -glm::normalize(camera_gaze);
+const auto camera_u = glm::normalize(glm::cross(camera_up, camera_w));
+const auto camera_v = glm::cross(camera_w, camera_u);
+const auto mat_cam = glm::mat4{
+  glm::vec4(camera_u.x, camera_u.y, camera_u.z, 0.0f),
+  glm::vec4(camera_v.x, camera_v.y, camera_v.z, 0.0f),
+  glm::vec4(camera_w.x, camera_w.y, camera_w.z, 0.0f),
+  glm::vec4(-glm::dot(camera_u, camera_eye), -glm::dot(camera_v, camera_eye), -glm::dot(camera_w, camera_eye), 1.0f)
+};
 
-constexpr auto n =  0.1f, f =  100.0f;
-constexpr f32 fov_y = glm::radians(45.0f);
-const f32 t = n * glm::tan(fov_y / 2.0f);
-
+static f32 n;
+static f32 f;
+static f32 t;
 static f32 r; 
 static f32 b; 
 static f32 l; 
 
-void init_camera(f32 aspect_ratio)
+static glm::mat4 mat_perspective;
+static glm::mat4 mat_ortho;
+
+void init_camera(f32 near, f32 far, f32 fovy, f32 aspect_ratio)
 {
+  n = near;
+  f = far;
+  t = n * glm::tan(glm::radians(fovy) / 2.0f);
   r = t * aspect_ratio;
   b = -t;
-  l = -r; 
+  l = -r;
+  
+  mat_perspective = glm::mat4{
+    glm::vec4(2.0f*n/(r-l),    0.0f,           0.0f,          0.0f),
+    glm::vec4(0.0f,     (2.0f*n)/(t-b),           0.0f,          0.0f),
+    glm::vec4((l+r)/(l-r), (b+t)/(b-t), (f+n)/(f-n),         -1.0f),
+    glm::vec4(0.0f,          0.0f,      (2.0f*f*n)/(f-n),        0.0f)
+  };
+  
+  mat_ortho = glm::mat4(
+    glm::vec4(2.0f/(r-l),       0.0f,          0.0f,        0.0f),
+    glm::vec4(0.0f,        2.0f/(t-b),          0.0f,        0.0f),
+    glm::vec4(0.0f,             0.0f,     -2.0f/(f-n),       0.0f),
+    glm::vec4(-(r+l)/(r-l), -(t+b)/(t-b), -(f+n)/(f-n),    1.0f)
+  );
 }
 
 void frame_to_canonical(f32* vertices, i32 n_vertices)
@@ -36,18 +74,7 @@ void frame_to_canonical(f32* vertices, i32 n_vertices)
   //         | y_u   y_v   y_w   y_e | | v_p | 
   // P_xyz = | z_u   z_v   z_w   z_e | | w_p | 
   //         | 0     0     0     1   | | 1   | 
-   
-  constexpr glm::vec3 e = glm::vec3(0.0f, 0.0f, 0.0f); 
-  constexpr glm::vec3 u = glm::vec3(1.0f, 0.0f, 0.0f); 
-  constexpr glm::vec3 v = glm::vec3(0.0f, 1.0f, 0.0f);
-  constexpr glm::vec3 w = glm::vec3(0.0f, 0.0f, 1.0f);
-  constexpr glm::mat4 ftc = {
-    glm::vec4(u, 0.0f),
-    glm::vec4(v, 0.0f),
-    glm::vec4(w, 0.0f),
-    glm::vec4(e, 1.0f)
-  };
-  
+
   for(i32 i = 0; i < n_vertices; i++)
   {
     auto& x = vertices[i*4+ 0];
@@ -55,7 +82,7 @@ void frame_to_canonical(f32* vertices, i32 n_vertices)
     auto& z = vertices[i*4+ 2];
     
     glm::vec4 p_local = glm::vec4(x, y, z, 1.0f);
-    glm::vec4 p_world = ftc * p_local;
+    glm::vec4 p_world = mat_ftc * p_local;
     
     x = p_world.x;
     y = p_world.y;
@@ -72,10 +99,7 @@ void canonical_to_camera(f32* vertices, i32 n_vertices)
   // - w = - (g/||g||)
   // - u = (t x w) / (|| t x w ||)
   // - v = w x u
-  glm::vec3 w = -glm::normalize(camera_gaze);
-  glm::vec3 u = glm::normalize(glm::cross(camera_up, w));
-  glm::vec3 v = glm::cross(w, u);
-  
+
   // We just need to convert these coordinates into into the camera frame coordinate system. 
   // We can do this using the following matrix transformation:
   // 
@@ -83,14 +107,7 @@ void canonical_to_camera(f32* vertices, i32 n_vertices)
   //         | u v w e |^1    | x_v   y_v   z_v   -y_e |
   // M_cam = | 0 0 0 1 |    = | x_w   y_w   z_w   -z_e |
   //                          | 0     0     0      1   |
-  
-  glm::mat4 m_cam = {
-    glm::vec4(u.x, u.y, u.z, 0.0f),
-    glm::vec4(v.x, v.y, v.z, 0.0f),
-    glm::vec4(w.x, w.y, w.z, 0.0f),
-    glm::vec4(-glm::dot(u, camera_eye), -glm::dot(v, camera_eye), -glm::dot(w, camera_eye), 1.0f)
-  };
-  
+
   for(int i = 0; i < n_vertices; i++)
   {
     auto& x = vertices[i*4 + 0];
@@ -98,7 +115,7 @@ void canonical_to_camera(f32* vertices, i32 n_vertices)
     auto& z = vertices[i*4 + 2];
     
     auto p_world = glm::vec4(x, y, z, 1.0f);
-    auto p_cam = m_cam * p_world;
+    auto p_cam = mat_cam * p_world;
     
     x = p_cam.x;
     y = p_cam.y;
@@ -129,13 +146,6 @@ void camera_to_perspective(f32* vertices, i32 n_vertices)
   // M_per = M_ortho * P  = | 0         		0         		(f+n)/(n-f)		(2n)/(f-n)	|
   //                        | 0         		0         		1         		0           |
  
-  auto m_per = glm::mat4{
-    glm::vec4(2.0f*n/(r-l),    0.0f,           0.0f,          0.0f),  // col 0
-    glm::vec4(0.0f,     2.0f*n/(t-b),           0.0f,          0.0f),  // col 1
-    glm::vec4((l+r)/(l-r), (b+t)/(b-t), (f+n)/(f-n),         -1.0f),  // col 2
-    glm::vec4(0.0f,          0.0f,      2.0f*f*n/(f-n),        0.0f)   // col 3
-  };
-  
   for(int i = 0; i < n_vertices; i++)
   {
     auto& x = vertices[i*4 + 0];
@@ -144,7 +154,7 @@ void camera_to_perspective(f32* vertices, i32 n_vertices)
     auto& w = vertices[i*4 + 3];
     
     auto p_cam = glm::vec4(x, y, z, 1.0f);
-    auto p_clip = m_per * p_cam; // [-1, +1]
+    auto p_clip = mat_perspective * p_cam; // [-1, +1]
   
     x = p_clip.x; 
     y = p_clip.y; 
@@ -167,13 +177,6 @@ void camera_to_ortho(f32* vertices, i32 n_vertices)
   // M_ortho =  | 0         0         2/(n-f)   -(n+f)/(n-f) |
   //            | 0         0         0         1            |
 
-  auto m_ortho = glm::mat4(
-    glm::vec4(2.0f/(r-l),       0.0f,          0.0f,        0.0f),
-    glm::vec4(0.0f,        2.0f/(t-b),          0.0f,        0.0f),
-    glm::vec4(0.0f,             0.0f,     -2.0f/(f-n),       0.0f),
-    glm::vec4(-(r+l)/(r-l), -(t+b)/(t-b), -(f+n)/(f-n),    1.0f)
-  );
-  
   for(int i = 0; i < n_vertices; i++)
   {
     auto& x = vertices[i*4 + 0];
@@ -181,10 +184,28 @@ void camera_to_ortho(f32* vertices, i32 n_vertices)
     auto& z = vertices[i*4 + 2];
     
     auto p_cam = glm::vec4(x, y, z, 1);
-    auto p_proj = m_ortho * p_cam; // [-1, +1]
+    auto p_proj = mat_ortho * p_cam; // [-1, +1]
     
     x = p_proj.x;
     y = p_proj.y;
     z = p_proj.z;
   }
+}
+
+
+const glm::mat4& get_mat_ftc()
+{
+  return mat_ftc;
+}
+const glm::mat4& get_mat_camera()
+{
+  return mat_cam;
+}
+const glm::mat4& get_mat_perspective()
+{
+  return mat_perspective;
+}
+const glm::mat4& get_mat_ortho()
+{
+  return mat_ortho;
 }

@@ -99,12 +99,22 @@ public:
   bool check_link_status() const;  
   // Returns the link log of the program
   std::string get_link_log() const;
-  
   // Installs a program object as part of current rendering state
   void use() const;
-  
   // To signal that a program object is intended to be used with this separate program model, we must set a parameter on the program before linking. 
   void set_separable(bool flag) const;
+  
+  // Returns the value of a uniform variable with added safety checks to prevent buffer overflow.
+  // The `size` is parameter is the size of the buffer in bytes, not the number of elements.
+  // The `value_out` parameter is a pointer to a buffer where the uniform's value(s) will be stored
+  void get_uniform_value_f32(i32 location, i64 size, f32* value_out) const;
+  void get_uniform_value_i32(i32 location, i64 size, i32* value_out) const;
+  // Returns an integer that represents the location of a specific uniform variable within a program object
+  i32 get_uniform_location(std::string_view name) const;
+  // Specify the value of a uniform variable for the current program object
+  void set_uniform_32(i32 location, f32 value) const;
+  void set_uniform_vector3f(i32 location, const f32* value) const;
+  void set_uniform_mat4f(i32 location, const f32* value) const;
  
  	// Utility method to check if the program is a valid object 
   bool is_valid() const;

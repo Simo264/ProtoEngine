@@ -136,6 +136,37 @@ void ShaderProgram::set_separable(bool flag) const
   glProgramParameteri(m_id, GL_PROGRAM_SEPARABLE, flag ? GL_TRUE : GL_FALSE);
 }
 
+void ShaderProgram::get_uniform_value_f32(i32 location, i64 size, f32* value) const
+{
+  glGetnUniformfv(m_id, location, size, value);
+}
+
+void ShaderProgram::get_uniform_value_i32(i32 location, i64 size, i32* value) const
+{
+  glGetnUniformiv(m_id, location, size, value);
+}
+
+i32 ShaderProgram::get_uniform_location(std::string_view name) const
+{
+  return glGetUniformLocation(m_id, name.data());
+}
+
+void ShaderProgram::set_uniform_32(i32 location, f32 value) const
+{
+  glUniform1f(location, value); 
+}
+
+void ShaderProgram::set_uniform_vector3f(i32 location, const f32* value) const
+{
+  glUniform3fv(location, 1, value);
+}
+
+void ShaderProgram::set_uniform_mat4f(i32 location, const f32* value) const
+{
+  glUniformMatrix4fv(location, 1, GL_FALSE, value);
+}
+
+
 // ====================================
 //            ProgramPipeline
 // ====================================
