@@ -33,16 +33,17 @@ FetchContent_MakeAvailable(glfw)
 
 # include GLM
 FetchContent_Declare(
-	glm
-	GIT_REPOSITORY	https://github.com/g-truc/glm.git
-	GIT_TAG         0af55ccecd98d4e5a8d1fad7de25ba429d60e863
-	GIT_PROGRESS    TRUE
-	SOURCE_DIR      ${CMAKE_SOURCE_DIR}/dependencies/glm
+ glm
+ GIT_REPOSITORY	https://github.com/g-truc/glm.git
+ GIT_TAG         0af55ccecd98d4e5a8d1fad7de25ba429d60e863
+ GIT_PROGRESS    TRUE
+ SOURCE_DIR      ${CMAKE_SOURCE_DIR}/dependencies/glm
 )
 FetchContent_MakeAvailable(glm)
 
 add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/glad")
 add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/imgui")
+add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/stb")
 
 add_executable(ProtoEngine ${PROTOENGINE_SOURCES})
 
@@ -56,6 +57,7 @@ target_link_libraries(ProtoEngine PRIVATE
   glad::glad
   glfw
   glm::glm
+  stb::stb_image
   imgui::imgui
 )
 

@@ -1,6 +1,5 @@
 #include "camera.hpp"
 
-
 // ==================================
 // 							Public
 // ==================================
@@ -62,12 +61,13 @@ glm::mat4 Camera::get_perspective() const
 	f32 r = t * aspect;
 	f32 b = -t;
 	f32 l = -r;	
-	auto m_per = glm::mat4{
-	  glm::vec4(2.0f*near/(r-l), 	0.0f, 							0.0f, 											0.0f),
-	  glm::vec4(0.0f, 						(2.0f*near)/(t-b),  0.0f,          							0.0f),
-	  glm::vec4((l+r)/(l-r), 			(b+t)/(b-t), 				(far+near)/(far-near),      -1.0f),
-	  glm::vec4(0.0f,          		0.0f,      					(2.0f*far*near)/(far-near), 0.0f)
-	};
+  auto m_per = glm::mat4(
+    glm::vec4(2.0f*near/(r-l),  0.0f,             0.0f,                         0.0f),
+    glm::vec4(0.0f,             2.0f*near/(t-b),  0.0f,                         0.0f),
+    glm::vec4((r+l)/(r-l),      (t+b)/(t-b),     -(far+near)/(far-near),       -1.0f),
+    glm::vec4(0.0f,             0.0f,            -(2.0f*far*near)/(far-near),   0.0f)
+  );
+    
 	return m_per;
 }
 

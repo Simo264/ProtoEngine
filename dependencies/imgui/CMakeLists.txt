@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(imgui NONE LANGUAGES C CXX)
+project(imgui LANGUAGES C CXX)
 
 set(IMGUI_SOURCES 
   imgui.cpp
