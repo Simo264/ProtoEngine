@@ -10,6 +10,7 @@
 #include "buffer.hpp"
 #include "vertex_array.hpp"
 #include "camera.hpp"
+#include "texture.hpp"
 
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
@@ -178,7 +179,6 @@ int main()
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
   ImGui::StyleColorsDark();
-  //ImGui::StyleColorsLight();
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 460");
 	
@@ -235,57 +235,24 @@ int main()
   
   auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
   auto data = stbi_load(texture_path.string().c_str(), &width, &height, &nr_channels, 0);
-  
-  // A texture object has the concept of "completeness". 
-  // A complete texture object is one which is in a logical state to be used for many operations. 
-  // Until a texture is complete, it cannot be used in shader sampling or Image Load Store operations.
-  // 
-  // A texture object is complete if it fulfills the following kinds of completeness requirements: 
-  // 1. Mipmap completeness
-  // 2. Cubemap completeness
-  // 3. Image format completeness
-  // 4. Sampler objects and completeness
-  //
-  // Mipmap completeness: essentially requires that there is consistency between the image formats of the allocated mipmap levels, 
-  // the texture parameters, and the texture's sampling parameters. 
-  // Mipmap completion only applies if the minification filtering parameters use mipmaps. If it does not, then the texture is always mipmap complete.
-  
-  u32 texture_id;
-  // create texture objects
-  glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
-  // specify the storage requirements for all levels of a two-dimensional texture
-  glTextureStorage2D(texture_id, 1, GL_RGB8, width, height);
-  // update a subregion of an existing two-dimensional texture image
-  glTextureSubImage2D(texture_id, 0, 0,0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
+
+  auto texture = Texture{};
+  texture.create(TextureType::Texture2D);
+  texture.set_storage_tex2D(1, TextureImageFormat::RGB8, width, height);
+  texture.update_content_tex2D(0, 0, 0, width, height, PixelDataFormat::RGB, PixelDataType::UnsignedByte, data);
   stbi_image_free(data);
   
-  // Edge value sampling (wrap modes)
-  // When a texture coordinate is not within the [0, 1] range, a heuristic must be employed to decide what the color value will be.
-  glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
- 
-  // Texture filtering.
-  // Magnification means that the area of the fragment in texture space is smaller than a texel, 
-  // and minification means that the area of the fragment in texture space is larger than a texel.
-  //
-  // When doing minification, you can choose to use mipmapping or not. 
-  // Using mipmapping means selecting between multiple mipmaps based on the angle and size of the texture relative to the screen. 
-  // If you do use mipmapping, you can choose to either select a single mipmap to sample from, or you can sample the two adjacent 
-  // mipmaps and linearly blend the resulting values to get the final result.
-   
-  // The magnification filter is controlled by the GL_TEXTURE_MAG_FILTER texture parameter. This value can be GL_LINEAR or GL_NEAREST.
-  glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
-
+  texture.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
+  texture.set_magnification_filter(TextureFilteringMode::Linear);
   constexpr auto use_mipmap = false;
   if constexpr (use_mipmap)
   {
-    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-    // generate mipmaps for a specified texture object
-    glGenerateTextureMipmap(texture_id);
+    texture.set_minification_filter(TextureFilteringMode::LinearMipmapNearest);
+    texture.generate_mipmaps();
   }
   else 
   {
-    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    texture.set_minification_filter(TextureFilteringMode::Nearest);
   }
   
   auto vbo = Buffer{};
@@ -332,7 +299,6 @@ int main()
     camera.fovy = glm::radians(fov);
     ImGui::End();
     
-    //cube_scale.x = glm::abs(glm::sin(glfwGetTime()));
     cube_rotation.y = glm::radians(glfwGetTime()) * 32;
     
     auto mat_transform = calculate_transformation_matrix(cube_position, cube_scale, cube_rotation);
@@ -347,7 +313,7 @@ int main()
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_ftc"), &mat_ftc[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
-    glBindTextureUnit(0, texture_id);
+    texture.bind_texture_unit(0);
     
     vao.bind();
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
