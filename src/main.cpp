@@ -5,7 +5,6 @@
 #include <array>
 
 #include "basic_types.hpp"
-#include "glm/fwd.hpp"
 #include "pipeline.hpp"
 #include "buffer.hpp"
 #include "vertex_array.hpp"
@@ -30,6 +29,35 @@ static auto aspect_ratio = static_cast<f32>(WINDOW_W) / static_cast<f32>(WINDOW_
 static auto program_vertex_object = ShaderProgram{};
 static auto program_fragment_object = ShaderProgram{};
 static auto pipeline_object = ProgramPipelineObject{};
+
+GLFWwindow* init_context()
+{
+	glfwInit();
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_DEPTH_BITS, 24); 
+  auto window = glfwCreateWindow(WINDOW_W, WINDOW_H, "Proto engine", nullptr, nullptr);
+  glfwMakeContextCurrent(window);
+  gladLoadGL(glfwGetProcAddress);
+  glfwSetFramebufferSizeCallback(window, []([[ maybe_unused ]]GLFWwindow* window, int width, int height){ 
+    glViewport(0, 0, width, height); 
+    aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
+  });
+  glViewport(0, 0, WINDOW_W, WINDOW_H);
+  
+  // Setup Dear ImGui context
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  auto& io = ImGui::GetIO(); (void)io;
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplOpenGL3_Init("#version 460");
+  
+  return window;
+}
 
 void create_pipeline_object()
 {
@@ -80,6 +108,78 @@ void create_pipeline_object()
   status = pipeline_object.validate_pipeline();
   if(!status)
    	std::println("pipeline object status: {}", pipeline_object.get_validation_status());
+}
+
+VerteArray create_cube_object(u32& n_indices)
+{
+	// let's define our vertices in local space
+  constexpr auto n_vertices = 24;
+  constexpr auto vertices = std::array<f32, 5 * n_vertices>{
+      // FRONT 
+      -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+       0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+       0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+      -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+      // BACK
+       0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+      -0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+      -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+       0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+      // RIGHT
+       0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+       0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+       0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+       0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+      // LEFT 
+      -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+      -0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+      -0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+      -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+      // TOP
+      -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+       0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+       0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+      -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+      // BOTTOM
+      -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+       0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+       0.5f, -0.5f,  0.5f,  1.0f, 1.0f,
+      -0.5f, -0.5f,  0.5f,  0.0f, 1.0f,
+  };
+  constexpr auto indices = std::array<u32, 36> {
+       0,  1,  2,  2,  3,  0,  // FRONT
+       4,  5,  6,  6,  7,  4,  // BACK
+       8,  9, 10, 10, 11,  8,  // RIGHT
+      12, 13, 14, 14, 15, 12,  // LEFT
+      16, 17, 18, 18, 19, 16,  // TOP
+      20, 21, 22, 22, 23, 20,  // BOTTOM
+  };
+  
+  auto vbo = Buffer{};
+  vbo.create();
+  vbo.allocate_storage(sizeof(vertices), vertices.data(), BufferUsageFlags::DynamicStorage);
+  
+  auto ibo = Buffer{};
+  ibo.create();
+  ibo.allocate_storage(sizeof(indices), indices.data(), BufferUsageFlags::DynamicStorage);
+
+  auto vao = VerteArray{};
+  vao.create();
+
+  // Attribute 0: position(xyz) — offset 0
+  vao.set_attrib_format_float(0, 3, VertexAttribType::Float, false, 0);
+  // Attribute 1: texcoord(uv) — offset 3 * sizeof(f32)
+  vao.set_attrib_format_float(1, 2, VertexAttribType::Float, false, 3 * sizeof(f32));
+  vao.attach_vertex_buffer(0, vbo.id(), 0, 5 * sizeof(f32));
+  vao.link_attrib(0, 0);
+  vao.link_attrib(1, 0); 
+  vao.enable_attrib(0);
+  vao.enable_attrib(1);
+  vao.attach_index_buffer(ibo.id());
+  
+  n_indices = indices.size(); 
+  
+  return vao;
 }
 
 glm::mat4 calculate_transformation_matrix(const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation)
@@ -150,138 +250,50 @@ constexpr glm::mat4 calculate_frame_to_canonical()
 	return m_ftc;
 }
 
+Texture create_texture(const std::filesystem::path& filepath)
+{
+ 	if(!std::filesystem::exists(filepath))
+    exit(1);
+  
+  auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
+  auto data = stbi_load(filepath.string().c_str(), &width, &height, &nr_channels, 0);
+  auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);  // levels = floor(log_2(max(width, height))) + 1
+  
+	auto texture = Texture{};
+ 	texture.create(TextureType::Texture2D);
+  texture.set_storage_tex2D(levels, TextureImageFormat::RGB8, width, height);
+  texture.update_content_tex2D(0, 0, 0, width, height, PixelDataFormat::RGB, PixelDataType::UnsignedByte, data);
+  stbi_image_free(data);
+  
+  texture.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
+  texture.set_magnification_filter(TextureFilteringMode::Linear);
+  texture.set_minification_filter(TextureFilteringMode::LinearMipmapLinear);
+  texture.generate_mipmaps();
+  return texture;
+}
+
 int main() 
-{  
-  glfwInit();
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_DEPTH_BITS, 24); 
-  GLFWwindow* window = glfwCreateWindow(WINDOW_W, WINDOW_H, "Proto engine", nullptr, nullptr);
-  glfwMakeContextCurrent(window);
-  gladLoadGL(glfwGetProcAddress);
-  glfwSetFramebufferSizeCallback(window, []([[ maybe_unused ]]GLFWwindow* window, int width, int height){ 
-    glViewport(0, 0, width, height); 
-    aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
-  });
-  glViewport(0, 0, WINDOW_W, WINDOW_H);
+{ 
+	auto window = init_context();
+	
+  // Let's define the pipeline
+  create_pipeline_object();
+  
+  auto texture_color = create_texture(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface001_COL_2K.jpg");
+  
+  auto cube_indices = 0u;
+  auto cube_vao = create_cube_object(cube_indices);
+  auto cube_position = glm::vec3(0.f);
+  auto cube_rotation = glm::vec3(0.f);
+  auto cube_scale = glm::vec3(1.f);
+  
+  auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
   
   glEnable(GL_DEPTH_TEST);              // enable depth testing
   glDepthFunc(GL_LESS);                 // specify the value used for depth buffer comparisons
   glDepthMask(GL_TRUE);                 // enable/disable writing into the depth buffer
   glClearDepthf(1.0f);                  // specify the clear value for the depth buffer
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f); // specify the clear value for the color buffer
-  
-  // Setup Dear ImGui context
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  auto& io = ImGui::GetIO(); (void)io;
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
-  ImGui::StyleColorsDark();
-  ImGui_ImplGlfw_InitForOpenGL(window, true);
-  ImGui_ImplOpenGL3_Init("#version 460");
-	
-  // Let's define the pipeline
-  create_pipeline_object();
-
-  // let's define our vertices in local space
-  constexpr auto n_vertices = 24;
-  constexpr auto vertices = std::array<f32, 5 * n_vertices>{
-      // FRONT 
-      -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-       0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-       0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-      -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-      // BACK
-       0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-      -0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-      -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-       0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-      // RIGHT
-       0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-       0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-       0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-       0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-      // LEFT 
-      -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-      -0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-      -0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-      -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-      // TOP
-      -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-       0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-       0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-      -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-      // BOTTOM
-      -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-       0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-       0.5f, -0.5f,  0.5f,  1.0f, 1.0f,
-      -0.5f, -0.5f,  0.5f,  0.0f, 1.0f,
-  };
-  constexpr auto indices = std::array<u32, 36>{
-       0,  1,  2,  2,  3,  0,  // FRONT
-       4,  5,  6,  6,  7,  4,  // BACK
-       8,  9, 10, 10, 11,  8,  // RIGHT
-      12, 13, 14, 14, 15, 12,  // LEFT
-      16, 17, 18, 18, 19, 16,  // TOP
-      20, 21, 22, 22, 23, 20,  // BOTTOM
-  };
-  
-  auto res_directory = std::filesystem::current_path() / "res";
-  auto texture_path = res_directory / "textures/wood.jpg";
-  if(!std::filesystem::exists(texture_path))
-    exit(1);
-  
-  auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
-  auto data = stbi_load(texture_path.string().c_str(), &width, &height, &nr_channels, 0);
-
-  auto texture = Texture{};
-  texture.create(TextureType::Texture2D);
-  texture.set_storage_tex2D(1, TextureImageFormat::RGB8, width, height);
-  texture.update_content_tex2D(0, 0, 0, width, height, PixelDataFormat::RGB, PixelDataType::UnsignedByte, data);
-  stbi_image_free(data);
-  
-  texture.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
-  texture.set_magnification_filter(TextureFilteringMode::Linear);
-  constexpr auto use_mipmap = false;
-  if constexpr (use_mipmap)
-  {
-    texture.set_minification_filter(TextureFilteringMode::LinearMipmapNearest);
-    texture.generate_mipmaps();
-  }
-  else 
-  {
-    texture.set_minification_filter(TextureFilteringMode::Nearest);
-  }
-  
-  auto vbo = Buffer{};
-  vbo.create();
-  vbo.allocate_storage(sizeof(vertices), vertices.data(), BufferUsageFlags::DynamicStorage);
-  
-  auto ibo = Buffer{};
-  ibo.create();
-  ibo.allocate_storage(sizeof(indices), indices.data(), BufferUsageFlags::DynamicStorage);
-
-  auto vao = VerteArray{};
-  vao.create();
-
-  // Attribute 0: position(xyz) — offset 0
-  vao.set_attrib_format_float(0, 3, VertexAttribType::Float, false, 0);
-  // Attribute 1: texcoord(uv) — offset 3 * sizeof(f32)
-  vao.set_attrib_format_float(1, 2, VertexAttribType::Float, false, 3 * sizeof(f32));
-  vao.attach_vertex_buffer(0, vbo.id(), 0, 5 * sizeof(f32));
-  vao.link_attrib(0, 0);
-  vao.link_attrib(1, 0); 
-  vao.enable_attrib(0);
-  vao.enable_attrib(1);
-  vao.attach_index_buffer(ibo.id());
-  
-  auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
-  
-  auto cube_position = glm::vec3(0.f);
-  auto cube_rotation = glm::vec3(0.f);
-  auto cube_scale = glm::vec3(1.f);
   
   while (!glfwWindowShouldClose(window))
   {
@@ -313,13 +325,14 @@ int main()
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_ftc"), &mat_ftc[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
-    texture.bind_texture_unit(0);
+    texture_color.bind_texture_unit(0);
     
-    vao.bind();
-    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+    cube_vao.bind();
+    glDrawElements(GL_TRIANGLES, cube_indices, GL_UNSIGNED_INT, 0);
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    auto& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
       GLFWwindow* backup_current_context = glfwGetCurrentContext();
