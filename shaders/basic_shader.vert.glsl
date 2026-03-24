@@ -1,7 +1,8 @@
 #version 460 core
 
-layout(location = 0) in vec3 in_local_pos;
-layout(location = 1) in vec2 in_tex_coord;
+layout(location = 0) in vec3 in_pos; 			// in local coordinate system
+layout(location = 1) in vec3 in_normal; 	// in local coordinate system
+layout(location = 2) in vec2 in_texcoord; // in local coordinate system
 
 uniform mat4 mat_transform;
 uniform mat4 mat_ftc;
@@ -9,19 +10,26 @@ uniform mat4 mat_cam;
 uniform mat4 mat_per;
 
 out vec2 vs_out_texcoord;
+out vec3 vs_out_normal;
+out vec3 vs_out_frag_global_space;
  
 void main()
 {
-  vec4 v_local_space = vec4(in_local_pos, 1.0f);
-  // apply transform
-  v_local_space = mat_transform * v_local_space;
+	// apply transform
+  vec4 p_local_space = mat_transform * vec4(in_pos, 1.0f);
   // frame to canonical space
-  vec4 v_global_space = mat_ftc * v_local_space;
+  vec4 p_global_space = mat_ftc * p_local_space;
+  vs_out_frag_global_space = vec3(p_global_space);
   // canonical to camera space
-  vec4 v_camera_space = mat_cam * v_global_space;
+  vec4 p_camera_space = mat_cam * p_global_space;
   // camera to clip space (camera to perspective)
-  vec4 v_clip_space = mat_per * v_camera_space;
+  vec4 p_clip_space = mat_per * p_camera_space;
   
-  gl_Position = v_clip_space;
-  vs_out_texcoord = in_tex_coord;
+  // normal transormation for non-uniform scaling: N = (M^-1)^T
+  mat3 normal_matrix = transpose(inverse(mat3(mat_ftc * mat_transform)));
+  vec3 n_global_space = normal_matrix * in_normal;
+  
+  gl_Position = p_clip_space;
+  vs_out_texcoord = in_texcoord;
+  vs_out_normal = n_global_space;
 }

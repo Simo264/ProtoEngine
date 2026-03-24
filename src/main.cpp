@@ -5,6 +5,7 @@
 #include <array>
 
 #include "basic_types.hpp"
+#include "glm/ext/vector_float3.hpp"
 #include "pipeline.hpp"
 #include "buffer.hpp"
 #include "vertex_array.hpp"
@@ -173,13 +174,17 @@ VerteArray create_cube_object(u32& n_indices)
 
   // Attribute 0: position(xyz) — offset 0
   vao.set_attrib_format_float(0, 3, VertexAttribType::Float, false, 0);
-  // Attribute 1: texcoord(uv) — offset 3 * sizeof(f32)
-  vao.set_attrib_format_float(1, 2, VertexAttribType::Float, false, 3 * sizeof(f32));
-  vao.attach_vertex_buffer(0, vbo.id(), 0, 5 * sizeof(f32));
+  // Attribute 1: normal(x,y,z) — offset 3 * sizeof(f32)
+  vao.set_attrib_format_float(1, 3, VertexAttribType::Float, false, 3 * sizeof(f32));
+  // Attribute 2: texcoord(uv) — offset 3 * sizeof(f32)
+  vao.set_attrib_format_float(2, 2, VertexAttribType::Float, false, 6 * sizeof(f32));
+  vao.attach_vertex_buffer(0, vbo.id(), 0, 8 * sizeof(f32));
   vao.link_attrib(0, 0);
   vao.link_attrib(1, 0); 
+  vao.link_attrib(2, 0); 
   vao.enable_attrib(0);
   vao.enable_attrib(1);
+  vao.enable_attrib(2);
   vao.attach_index_buffer(ibo.id());
   
   n_indices = indices.size(); 
@@ -198,25 +203,24 @@ glm::mat4 calculate_transformation_matrix(const glm::vec3& position, const glm::
   auto cx = glm::cos(rotation.x);
   auto sx = glm::sin(rotation.x);
   auto R_x = glm::mat3 {
-    1.0f,  0.0f, 0.0f,
-    0.0f,  cx,   sx,
-    0.0f, -sx,   cx 
+      1.0f,  0.0f, 0.0f,
+      0.0f,  cx,   sx,
+      0.0f, -sx,   cx
   };
-  
   auto cy = glm::cos(rotation.y);
   auto sy = glm::sin(rotation.y);
   auto R_y = glm::mat3 {
-    cy,  0.0f, -sy,
-    0.0f, 1.0f, 0.0f,
-    sy,  0.0f,  cy
+       cy,  0.0f, sy,
+      0.0f, 1.0f, 0.0f,
+      -sy,  0.0f, cy
   };
   
   auto cz = glm::cos(rotation.z);
   auto sz = glm::sin(rotation.z);
   auto R_z = glm::mat3 {
-    cz,  	sz,  	0.0f,
-   -sz,  	cz,  	0.0f,
-   	0.0f, 0.0f, 1.0f 
+       cz,  sz,   0.0f,
+      -sz,  cz,   0.0f,
+      0.0f, 0.0f, 1.0f 
   };
   
   auto R = R_z * R_y * R_x;
@@ -281,18 +285,21 @@ int main()
 { 
 	auto window = init_context();
 	
-  // Let's define the pipeline
+  // define the program pipeline
   create_pipeline_object();
   
+  // create the texture color
   auto texture_color = create_texture(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface001_COL_2K.jpg");
-   
+  
+  // define the camera
+  auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
+  
+  // define the cube object
   auto cube_indices = 0u;
   auto cube_vao = create_cube_object(cube_indices);
   auto cube_position = glm::vec3(0.f);
   auto cube_rotation = glm::vec3(0.f);
   auto cube_scale = glm::vec3(1.f);
-  
-  auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
   
   glEnable(GL_DEPTH_TEST);              // enable depth testing
   glDepthFunc(GL_LESS);                 // specify the value used for depth buffer comparisons
@@ -302,21 +309,66 @@ int main()
   
   while (!glfwWindowShouldClose(window))
   {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
+  	// cube_rotation.y = glm::radians(glfwGetTime()) * 32;
+    
+   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
     
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     
-    ImGui::Begin("Camera properties", nullptr);
-    auto fov = glm::degrees(camera.fovy); 
-    ImGui::DragFloat("Camera vertical FOV", &fov, 1.0f, 30.0f, 120.0f);
-    ImGui::DragFloat3("Camera position", &camera.eye[0], 0.1f, -10.0f, 10.0f);
-    camera.fovy = glm::radians(fov);
+    ImGui::Begin("Scene");
+    if (ImGui::CollapsingHeader("Proprietà Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
+    {
+    static float camYaw = -90.0f; 
+    static float camPitch = 0.0f;
+    
+        // FOV
+        auto fov = glm::degrees(camera.fovy);
+        if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
+            camera.fovy = glm::radians(fov);
+    
+        // Posizione (eye)
+        ImGui::DragFloat3("Camera Position", &camera.eye[0], 0.1f);
+    
+        // Rotazione (Modifica il vettore gaze)
+        ImGui::Text("Camera Orientation");
+        bool changed = false;
+        changed |= ImGui::SliderFloat("Yaw", &camYaw, -180.0f, 180.0f);
+        changed |= ImGui::SliderFloat("Pitch", &camPitch, -89.0f, 89.0f);
+    
+        if (changed) {
+            glm::vec3 direction;
+            direction.x = cos(glm::radians(camYaw)) * cos(glm::radians(camPitch));
+            direction.y = sin(glm::radians(camPitch));
+            direction.z = sin(glm::radians(camYaw)) * cos(glm::radians(camPitch));
+            camera.gaze = glm::normalize(direction);
+        }
+    
+        if (ImGui::Button("Reset Camera")) {
+            camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
+            camera.gaze = glm::vec3(0.0f, 0.0f, -1.0f);
+            camYaw = -90.0f; camPitch = 0.0f;
+        }
+    }    
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Cube", ImGuiTreeNodeFlags_DefaultOpen)) 
+    {
+      ImGui::DragFloat3("Position", &cube_position[0], 0.1f);
+      ImGui::DragFloat3("Rotation", &cube_rotation[0], 1.0f); // In gradi
+      ImGui::DragFloat3("Scale", &cube_scale[0], 0.05f, 0.1f, 10.0f);
+      if (ImGui::Button("Reset"))
+      {
+        cube_position = glm::vec3(0.0f);
+        cube_rotation = glm::vec3(0.0f);
+        cube_scale = glm::vec3(1.0f);
+      }
+    }
     ImGui::End();
     
-    cube_rotation.y = glm::radians(glfwGetTime()) * 32;
     
     auto mat_transform = calculate_transformation_matrix(cube_position, cube_scale, cube_rotation);
     constexpr auto mat_ftc = calculate_frame_to_canonical();
