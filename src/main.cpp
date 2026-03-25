@@ -275,6 +275,21 @@ Texture create_texture_color(const std::filesystem::path& filepath)
   return texture;
 }
 
+Texture create_texture_normal(const std::filesystem::path& filepath)
+{
+  if(!std::filesystem::exists(filepath))
+    exit(1);
+  
+  auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
+  auto data = stbi_load(filepath.string().c_str(), &width, &height, &nr_channels, 0);
+  auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);  // levels = floor(log_2(max(width, height))) + 1
+  
+  auto texture = Texture{};
+  texture.create(TextureType::Texture2D);
+  texture.set_storage_tex2D(levels, TextureImageFormat::RGB8, width, height);
+  
+}
+
 int main() 
 { 
 	auto window = init_context();
@@ -282,8 +297,9 @@ int main()
   // define the program pipeline
   create_pipeline_object();
   
-  // create the texture color
+  // create the texture color and normal map
   auto texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface001_COL_2K.jpg");
+  auto texture_normal = create_texture_normal(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface001_NRM_2K.jpg");
   
   // define the camera
   auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
