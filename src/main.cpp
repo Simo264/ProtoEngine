@@ -111,84 +111,78 @@ void create_pipeline_object()
    	std::println("pipeline object status: {}", pipeline_object.get_validation_status());
 }
 
-VerteArray create_cube_object(u32& n_indices)
+VerteArray create_cube_object(u32& n_vertices, u32& n_indices)
 {
 	// let's define our vertices in local space
-  constexpr auto n_vertices = 24;
-  constexpr auto vertices = std::array<f32, 8 * n_vertices>{
-  	// --- FACCIA FRONTALE (Z+) ---
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f,
-
-    // --- FACCIA POSTERIORE (Z-) ---
-     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-
-    // --- FACCIA DESTRA (X+) ---
-    0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-    0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-    0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-
-    // --- FACCIA SINISTRA (X-) ---
-    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-
-    // --- FACCIA SUPERIORE (Y+) ---
-    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-
-    // --- FACCIA INFERIORE (Y-) ---
-    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-  };
-  constexpr auto indices = std::array<u32, 36> {
-       0,  1,  2,  2,  3,  0,  // FRONT
-       4,  5,  6,  6,  7,  4,  // BACK
-       8,  9, 10, 10, 11,  8,  // RIGHT
-      12, 13, 14, 14, 15, 12,  // LEFT
-      16, 17, 18, 18, 19, 16,  // TOP
-      20, 21, 22, 22, 23, 20,  // BOTTOM
+	constexpr auto n_vertex_components = 8u;
+  constexpr auto vertices = std::array{
+    // positions          // normals           // texture coords
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
   };
   
   auto vbo = Buffer{};
   vbo.create();
   vbo.allocate_storage(sizeof(vertices), vertices.data(), BufferUsageFlags::DynamicStorage);
   
-  auto ibo = Buffer{};
-  ibo.create();
-  ibo.allocate_storage(sizeof(indices), indices.data(), BufferUsageFlags::DynamicStorage);
+  // auto ibo = Buffer{};
+  // ibo.create();
+  // ibo.allocate_storage(sizeof(indices), indices.data(), BufferUsageFlags::DynamicStorage);
 
   auto vao = VerteArray{};
   vao.create();
-
   // Attribute 0: position(xyz) — offset 0
   vao.set_attrib_format_float(0, 3, VertexAttribType::Float, false, 0);
   // Attribute 1: normal(x,y,z) — offset 3 * sizeof(f32)
   vao.set_attrib_format_float(1, 3, VertexAttribType::Float, false, 3 * sizeof(f32));
   // Attribute 2: texcoord(uv) — offset 3 * sizeof(f32)
   vao.set_attrib_format_float(2, 2, VertexAttribType::Float, false, 6 * sizeof(f32));
-  vao.attach_vertex_buffer(0, vbo.id(), 0, 8 * sizeof(f32));
+  vao.attach_vertex_buffer(0, vbo.id(), 0, n_vertex_components * sizeof(f32));
   vao.link_attrib(0, 0);
   vao.link_attrib(1, 0); 
   vao.link_attrib(2, 0); 
   vao.enable_attrib(0);
   vao.enable_attrib(1);
   vao.enable_attrib(2);
-  vao.attach_index_buffer(ibo.id());
+  //vao.attach_index_buffer(ibo.id());
   
-  n_indices = indices.size(); 
-  
+  //n_indices = indices.size(); 
+  n_indices = 0;
+  n_vertices = vertices.size() / n_vertex_components;
   return vao;
 }
 
@@ -259,7 +253,7 @@ constexpr glm::mat4 calculate_frame_to_canonical()
 	return m_ftc;
 }
 
-Texture create_texture(const std::filesystem::path& filepath)
+Texture create_texture_color(const std::filesystem::path& filepath)
 {
  	if(!std::filesystem::exists(filepath))
     exit(1);
@@ -289,14 +283,14 @@ int main()
   create_pipeline_object();
   
   // create the texture color
-  auto texture_color = create_texture(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface001_COL_2K.jpg");
+  auto texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface001_COL_2K.jpg");
   
   // define the camera
   auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
   
   // define the cube object
-  auto cube_indices = 0u;
-  auto cube_vao = create_cube_object(cube_indices);
+  auto cube_indices = 0u, cube_vertices = 0u;
+  auto cube_vao = create_cube_object(cube_vertices, cube_indices);
   auto cube_position = glm::vec3(0.f);
   auto cube_rotation = glm::vec3(0.f);
   auto cube_scale = glm::vec3(1.f);
@@ -309,7 +303,13 @@ int main()
   
   while (!glfwWindowShouldClose(window))
   {
-  	// cube_rotation.y = glm::radians(glfwGetTime()) * 32;
+    auto time = glfwGetTime();
+    cube_rotation.y = glm::radians(time) * 32;
+    
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    camera.rotate_pitch(+glm::radians(1.0f));
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  camera.rotate_pitch(-glm::radians(1.0f));
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  camera.rotate_yaw(+glm::radians(1.0f));
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camera.rotate_yaw(-glm::radians(1.0f));
     
    	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
     
@@ -321,36 +321,22 @@ int main()
     ImGui::Begin("Scene");
     if (ImGui::CollapsingHeader("Proprietà Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
     {
-    static float camYaw = -90.0f; 
-    static float camPitch = 0.0f;
-    
-        // FOV
-        auto fov = glm::degrees(camera.fovy);
-        if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
-            camera.fovy = glm::radians(fov);
-    
-        // Posizione (eye)
-        ImGui::DragFloat3("Camera Position", &camera.eye[0], 0.1f);
-    
-        // Rotazione (Modifica il vettore gaze)
-        ImGui::Text("Camera Orientation");
-        bool changed = false;
-        changed |= ImGui::SliderFloat("Yaw", &camYaw, -180.0f, 180.0f);
-        changed |= ImGui::SliderFloat("Pitch", &camPitch, -89.0f, 89.0f);
-    
-        if (changed) {
-            glm::vec3 direction;
-            direction.x = cos(glm::radians(camYaw)) * cos(glm::radians(camPitch));
-            direction.y = sin(glm::radians(camPitch));
-            direction.z = sin(glm::radians(camYaw)) * cos(glm::radians(camPitch));
-            camera.gaze = glm::normalize(direction);
-        }
-    
-        if (ImGui::Button("Reset Camera")) {
-            camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
-            camera.gaze = glm::vec3(0.0f, 0.0f, -1.0f);
-            camYaw = -90.0f; camPitch = 0.0f;
-        }
+      auto fov = glm::degrees(camera.fovy);
+      if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
+        camera.fovy = glm::radians(fov);
+  
+      ImGui::DragFloat3("Camera Position", &camera.eye[0], 0.1f);
+      
+      auto euler_angles = glm::degrees(glm::eulerAngles(camera.orientation));
+      ImGui::DragFloat3("Orientation", &euler_angles[0], 1.0f);
+      camera.set_orientation(euler_angles);
+      
+      if (ImGui::Button("Reset Camera")) 
+      {
+        camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
+        camera.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        camera.fovy = glm::radians(45.0f);
+      }
     }    
     ImGui::Spacing();
     ImGui::Separator();
@@ -385,7 +371,8 @@ int main()
     texture_color.bind_texture_unit(0);
     
     cube_vao.bind();
-    glDrawElements(GL_TRIANGLES, cube_indices, GL_UNSIGNED_INT, 0);
+    glDrawArrays(GL_TRIANGLES, 0, cube_vertices);
+    //glDrawElements(GL_TRIANGLES, cube_indices, GL_UNSIGNED_INT, 0);
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

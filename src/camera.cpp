@@ -1,5 +1,7 @@
 #include "camera.hpp"
 
+#include <glm/ext/matrix_transform.hpp>
+
 // ==================================
 // 							Public
 // ==================================
@@ -22,16 +24,20 @@ glm::mat4 Camera::canonical_to_camera() const
 	// M_cam = | 0 0 0 1 |    = | x_w   y_w   z_w   -z_e |
 	//                          | 0     0     0      1   
 	
-	auto w = -glm::normalize(gaze);
-	auto u = glm::normalize(glm::cross(up, w));
-	auto v = glm::cross(w, u);
-	auto m_cam = glm::mat4{
-	  glm::vec4(u.x, u.y, u.z, 0.0f),
-	  glm::vec4(v.x, v.y, v.z, 0.0f),
-	  glm::vec4(w.x, w.y, w.z, 0.0f),
-	  glm::vec4(-glm::dot(u, eye), -glm::dot(v, eye), -glm::dot(w, eye), 1.0f)
-	};
-	return m_cam;
+	// auto w = -glm::normalize(gaze);
+	// auto u = glm::normalize(glm::cross(up, w));
+	// auto v = glm::cross(w, u);
+	// auto m_cam = glm::mat4{
+	//   glm::vec4(u.x, u.y, u.z, 0.0f),
+	//   glm::vec4(v.x, v.y, v.z, 0.0f),
+	//   glm::vec4(w.x, w.y, w.z, 0.0f),
+	//   glm::vec4(-glm::dot(u, eye), -glm::dot(v, eye), -glm::dot(w, eye), 1.0f)
+	// };
+	// return m_cam;
+	
+	auto rot = glm::mat4_cast(glm::conjugate(orientation));
+  auto tra = glm::translate(glm::mat4(1.0f), -eye);
+  return rot * tra;
 }
 
 glm::mat4 Camera::get_perspective() const
@@ -57,17 +63,16 @@ glm::mat4 Camera::get_perspective() const
 	// M_per = M_ortho * P  = | 0         		0         		(f+n)/(n-f)		(2n)/(f-n)	|
 	//                        | 0         		0         		1         		0           |
 
-	f32 t = near * glm::tan(fovy / 2.0f);
-	f32 r = t * aspect;
-	f32 b = -t;
-	f32 l = -r;	
+	auto t = near * glm::tan(fovy / 2.0f);
+	auto r = t * aspect;
+	auto b = -t;
+	auto l = -r;	
   auto m_per = glm::mat4(
     glm::vec4(2.0f*near/(r-l),  0.0f,             0.0f,                         0.0f),
     glm::vec4(0.0f,             2.0f*near/(t-b),  0.0f,                         0.0f),
     glm::vec4((r+l)/(r-l),      (t+b)/(t-b),     -(far+near)/(far-near),       -1.0f),
     glm::vec4(0.0f,             0.0f,            -(2.0f*far*near)/(far-near),   0.0f)
   );
-    
 	return m_per;
 }
 
@@ -96,4 +101,22 @@ glm::mat4 Camera::get_orthographic() const
   	glm::vec4(-(r+l)/(r-l), -(t+b)/(t-b),  -(far+near)/(far-near), 	1.0f)
 	);
 	return m_ortho;
+}
+
+void Camera::rotate_yaw(f32 angle_radians)
+{
+  glm::quat q = glm::angleAxis(angle_radians, glm::vec3(0, 1, 0));
+  orientation = glm::normalize(q * orientation);
+}
+
+void Camera::rotate_pitch(f32 angle_radians)
+{
+  glm::quat q = glm::angleAxis(angle_radians, glm::vec3(1, 0, 0));
+  orientation = glm::normalize(orientation * q);
+}
+
+void Camera::rotate_roll(f32 angle_radians)
+{
+  glm::quat q = glm::angleAxis(angle_radians, glm::vec3(0, 0, 1));
+  orientation = glm::normalize(orientation * q);
 }

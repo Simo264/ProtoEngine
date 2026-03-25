@@ -12,21 +12,12 @@ layout(binding=0) uniform sampler2D u_texture;
  
 void main()
 {
-	{
-    fs_out_color = vec4(vs_out_frag_global_space * 0.5 + 0.5, 1.0);
-    return;
-	}
-	
-
-
-
-
 	// map normals from [-1, +1] to [0, 1]
 	vec3 n = normalize(vs_out_normal);
 	// n = n*0.5 + 0.5;
   
   // define the point light source
-  vec3 light_position = vec3(0.0f, 1.5f, -1.5f);
+  vec3 light_position = vec3(0.0f, 1.5f, +1.5f);
   float light_power_watt = 100.0f;
 
   // calculate the general formula for the irradiance due a point source, E:
