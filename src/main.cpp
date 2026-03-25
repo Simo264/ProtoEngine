@@ -443,7 +443,6 @@ int main()
    	}
     ImGui::End();
     
-    
     auto mat_transform = calculate_transformation_matrix(cube_position, cube_scale, cube_rotation);
     constexpr auto mat_ftc = calculate_frame_to_canonical();
     camera.aspect = aspect_ratio;
@@ -461,7 +460,6 @@ int main()
     
     cube_vao.bind();
     glDrawArrays(GL_TRIANGLES, 0, cube_vertices);
-    //glDrawElements(GL_TRIANGLES, cube_indices, GL_UNSIGNED_INT, 0);
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
