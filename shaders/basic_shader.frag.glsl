@@ -6,7 +6,8 @@ in vec3 vs_out_frag_global_space;
 
 out vec4 fs_out_color;
 
-layout(binding=0) uniform sampler2D u_texture;
+layout(binding=0) uniform sampler2D u_texture_color;
+layout(binding=1) uniform sampler2D u_texture_normal;
 
 #define PI 3.1415926535897932384626433832795
  

@@ -259,7 +259,7 @@ Texture create_texture_color(const std::filesystem::path& filepath)
     exit(1);
   
   auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
-  auto data = stbi_load(filepath.string().c_str(), &width, &height, &nr_channels, 0);
+  auto data = stbi_load(filepath.string().c_str(), &width, &height, &nr_channels, STBI_rgb);
   auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);  // levels = floor(log_2(max(width, height))) + 1
   
 	auto texture = Texture{};
@@ -281,13 +281,22 @@ Texture create_texture_normal(const std::filesystem::path& filepath)
     exit(1);
   
   auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
-  auto data = stbi_load(filepath.string().c_str(), &width, &height, &nr_channels, 0);
+  auto data = stbi_load(filepath.string().c_str(), &width, &height, &nr_channels, STBI_rgb);
   auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);  // levels = floor(log_2(max(width, height))) + 1
   
   auto texture = Texture{};
   texture.create(TextureType::Texture2D);
   texture.set_storage_tex2D(levels, TextureImageFormat::RGB8, width, height);
+  texture.update_content_tex2D(0, 0, 0, width, height, PixelDataFormat::RGB, PixelDataType::UnsignedByte, data);
+  stbi_image_free(data);
   
+  texture.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
+  texture.set_magnification_filter(TextureFilteringMode::Linear);
+  texture.set_minification_filter(TextureFilteringMode::Linear); // no mipmap
+  
+  //texture.set_minification_filter(TextureFilteringMode::LinearMipmapLinear);
+  //texture.generate_mipmaps();
+  return texture;
 }
 
 int main() 
@@ -298,8 +307,8 @@ int main()
   create_pipeline_object();
   
   // create the texture color and normal map
-  auto texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface001_COL_2K.jpg");
-  auto texture_normal = create_texture_normal(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface001_NRM_2K.jpg");
+  auto texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_COL_2K.jpg");
+  auto texture_normal = create_texture_normal(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_NRM_2K.png");
   
   // define the camera
   auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
