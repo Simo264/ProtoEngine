@@ -303,13 +303,21 @@ int main()
   
   while (!glfwWindowShouldClose(window))
   {
-    auto time = glfwGetTime();
-    cube_rotation.y = glm::radians(time) * 32;
-    
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    camera.rotate_pitch(+glm::radians(1.0f));
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  camera.rotate_pitch(-glm::radians(1.0f));
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  camera.rotate_yaw(+glm::radians(1.0f));
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camera.rotate_yaw(-glm::radians(1.0f));
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)     camera.eye += camera.gaze() * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)     camera.eye -= camera.gaze() * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)     camera.eye -= camera.right() * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)     camera.eye += camera.right() * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)     camera.eye -= camera.up() * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)     camera.eye += camera.up() * 0.1f;
+    
+    auto time = glfwGetTime();
+    cube_rotation.y = glm::radians(time) * 32;
+    
     
    	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
     

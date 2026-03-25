@@ -12,6 +12,8 @@ layout(binding=0) uniform sampler2D u_texture;
  
 void main()
 {
+  vec3 surface_color = texture(u_texture, vs_out_texcoord).rgb;
+  
 	// map normals from [-1, +1] to [0, 1]
 	vec3 n = normalize(vs_out_normal);
 	// n = n*0.5 + 0.5;
@@ -50,7 +52,7 @@ void main()
   // The reflectance can be different for different colors of light, and for simple modeling of color, 
   // it suffices to just keep three different reflectances, one each for red, green, and blue, 
   // so this shading equation is carried out separately for the three color channels.
-  vec3 reflactance = vec3(0.8, 0.4, 0.1);
+  vec3 reflactance = surface_color;
   vec3 light_reflected = (reflactance / PI) * irradiance;
   fs_out_color = vec4(light_reflected, 1.0);
 }
