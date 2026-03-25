@@ -5,6 +5,7 @@
 #include <array>
 
 #include "basic_types.hpp"
+#include "glm/ext/quaternion_geometric.hpp"
 #include "glm/ext/vector_float3.hpp"
 #include "pipeline.hpp"
 #include "buffer.hpp"
@@ -12,6 +13,7 @@
 #include "camera.hpp"
 #include "texture.hpp"
 
+#include <glm/mat2x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -30,6 +32,14 @@ static auto aspect_ratio = static_cast<f32>(WINDOW_W) / static_cast<f32>(WINDOW_
 static auto program_vertex_object = ShaderProgram{};
 static auto program_fragment_object = ShaderProgram{};
 static auto pipeline_object = ProgramPipelineObject{};
+
+struct Vertex
+{
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec2 texcoord;
+	glm::vec3 tangent;
+};
 
 GLFWwindow* init_context()
 {
@@ -111,50 +121,93 @@ void create_pipeline_object()
    	std::println("pipeline object status: {}", pipeline_object.get_validation_status());
 }
 
+void compute_tangents(std::array<Vertex, 36>& vertices) 
+{
+  for (auto i = 0u; i < vertices.size(); i += 3) 
+  {
+  	auto& v0 = vertices.at(i);
+  	auto& v1 = vertices.at(i+1);
+  	auto& v2 = vertices.at(i+2);
+   	auto e1 = v1.position - v0.position;
+    auto e2 = v2.position - v0.position; 
+    auto delta_U1 = v1.texcoord.x - v0.texcoord.x;
+    auto delta_V1 = v1.texcoord.y - v0.texcoord.y;
+    auto delta_U2 = v2.texcoord.x - v0.texcoord.x;
+    auto delta_V2 = v2.texcoord.y - v0.texcoord.y;
+    
+    // The UV matrix is a square matrix 2x2
+   	auto mat_uv = glm::mat2(
+      glm::vec2(delta_U1, delta_U2),
+      glm::vec2(delta_V1, delta_V2)
+    );
+    // The E matrix is a rectangular matrix 2x3
+    auto mat_edge = glm::mat3x2(
+      glm::vec2(e1.x, e2.x),
+      glm::vec2(e1.y, e2.y),
+      glm::vec2(e1.z, e2.z)
+    );
+    
+    auto mat_uv_inv = glm::inverse(mat_uv);
+    
+    // The TB matrix is a rectangular matrix 2x3
+    auto mat_tb =  mat_uv_inv * mat_edge;
+
+    auto tangent = glm::vec3{};
+    tangent.x = mat_tb[0][0];
+    tangent.y = mat_tb[1][0];
+    tangent.z = mat_tb[2][0];
+    
+    v0.tangent = tangent; 
+    v1.tangent = tangent; 
+    v2.tangent = tangent;
+  }
+}
+
 VerteArray create_cube_object(u32& n_vertices, u32& n_indices)
 {
 	// let's define our vertices in local space
-	constexpr auto n_vertex_components = 8u;
-  constexpr auto vertices = std::array{
-    // positions          // normals           // texture coords
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
-    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
-     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
-  };
-  
+	constexpr auto n_vertex_components = 11u;
+	auto vertices = std::array {
+    Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f,  0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f,  0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f,  0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f,  0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f,  0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f,  0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f,  0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ { 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f,  0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f,  0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
+    Vertex{ {-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} }
+	};
+	
+	compute_tangents(vertices);
+	
   auto vbo = Buffer{};
   vbo.create();
   vbo.allocate_storage(sizeof(vertices), vertices.data(), BufferUsageFlags::DynamicStorage);
@@ -169,20 +222,25 @@ VerteArray create_cube_object(u32& n_vertices, u32& n_indices)
   vao.set_attrib_format_float(0, 3, VertexAttribType::Float, false, 0);
   // Attribute 1: normal(x,y,z) — offset 3 * sizeof(f32)
   vao.set_attrib_format_float(1, 3, VertexAttribType::Float, false, 3 * sizeof(f32));
-  // Attribute 2: texcoord(uv) — offset 3 * sizeof(f32)
+  // Attribute 2: texcoord(uv) — offset 6 * sizeof(f32)
   vao.set_attrib_format_float(2, 2, VertexAttribType::Float, false, 6 * sizeof(f32));
+  // Attribute 3: tangent(x,y,z) — offset 8 * sizeof(f32)
+  vao.set_attrib_format_float(3, 3, VertexAttribType::Float, false, 8 * sizeof(f32));
+
   vao.attach_vertex_buffer(0, vbo.id(), 0, n_vertex_components * sizeof(f32));
   vao.link_attrib(0, 0);
   vao.link_attrib(1, 0); 
   vao.link_attrib(2, 0); 
+  vao.link_attrib(3, 0); 
   vao.enable_attrib(0);
   vao.enable_attrib(1);
   vao.enable_attrib(2);
+  vao.enable_attrib(3);
   //vao.attach_index_buffer(ibo.id());
   
   //n_indices = indices.size(); 
   n_indices = 0;
-  n_vertices = vertices.size() / n_vertex_components;
+  n_vertices = vertices.size();
   return vao;
 }
 
@@ -292,10 +350,8 @@ Texture create_texture_normal(const std::filesystem::path& filepath)
   
   texture.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
   texture.set_magnification_filter(TextureFilteringMode::Linear);
-  texture.set_minification_filter(TextureFilteringMode::Linear); // no mipmap
-  
-  //texture.set_minification_filter(TextureFilteringMode::LinearMipmapLinear);
-  //texture.generate_mipmaps();
+  texture.set_minification_filter(TextureFilteringMode::LinearMipmapLinear);
+  texture.generate_mipmaps();
   return texture;
 }
 
@@ -337,12 +393,11 @@ int main()
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)     camera.eye -= camera.gaze() * 0.1f;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)     camera.eye -= camera.right() * 0.1f;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)     camera.eye += camera.right() * 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)     camera.eye -= camera.up() * 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)     camera.eye += camera.up() * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)          camera.eye += camera.up() * 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)   camera.eye -= camera.up() * 0.1f;
     
     auto time = glfwGetTime();
     cube_rotation.y = glm::radians(time) * 32;
-    
     
    	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
     
@@ -352,40 +407,40 @@ int main()
     ImGui::NewFrame();
     
     ImGui::Begin("Scene");
-    if (ImGui::CollapsingHeader("Proprietà Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
-    {
-      auto fov = glm::degrees(camera.fovy);
-      if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
-        camera.fovy = glm::radians(fov);
-  
-      ImGui::DragFloat3("Camera Position", &camera.eye[0], 0.1f);
-      
-      auto euler_angles = glm::degrees(glm::eulerAngles(camera.orientation));
-      ImGui::DragFloat3("Orientation", &euler_angles[0], 1.0f);
-      camera.set_orientation(euler_angles);
-      
-      if (ImGui::Button("Reset Camera")) 
-      {
-        camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
-        camera.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-        camera.fovy = glm::radians(45.0f);
-      }
-    }    
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-    if (ImGui::CollapsingHeader("Cube", ImGuiTreeNodeFlags_DefaultOpen)) 
-    {
-      ImGui::DragFloat3("Position", &cube_position[0], 0.1f);
-      ImGui::DragFloat3("Rotation", &cube_rotation[0], 1.0f); // In gradi
-      ImGui::DragFloat3("Scale", &cube_scale[0], 0.05f, 0.1f, 10.0f);
-      if (ImGui::Button("Reset"))
-      {
-        cube_position = glm::vec3(0.0f);
-        cube_rotation = glm::vec3(0.0f);
-        cube_scale = glm::vec3(1.0f);
-      }
-    }
+  	{
+	    if (ImGui::CollapsingHeader("Proprietà Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
+	    {
+	      auto fov = glm::degrees(camera.fovy);
+	      if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
+	        camera.fovy = glm::radians(fov);
+	  
+				auto euler_angles = glm::degrees(camera.get_euler_angles());
+				ImGui::Text("Camera Position: X:%.2f, Y:%.2f, Z:%.2f", camera.eye.x, camera.eye.y, camera.eye.z);
+    		ImGui::BulletText("P: %.2f°  Y: %.2f°  R: %.2f°", euler_angles.x, euler_angles.y, euler_angles.z);
+	      
+	      if (ImGui::Button("Reset Camera")) 
+	      {
+	        camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
+	        camera.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+	        camera.fovy = glm::radians(45.0f);
+	      }
+	    }    
+	    ImGui::Spacing();
+	    ImGui::Separator();
+	    ImGui::Spacing();
+	    if (ImGui::CollapsingHeader("Cube", ImGuiTreeNodeFlags_DefaultOpen)) 
+	    {
+	      ImGui::DragFloat3("Position", &cube_position[0], 0.1f);
+	      ImGui::DragFloat3("Rotation", &cube_rotation[0], 1.0f); // In gradi
+	      ImGui::DragFloat3("Scale", &cube_scale[0], 0.05f, 0.1f, 10.0f);
+	      if (ImGui::Button("Reset"))
+	      {
+	        cube_position = glm::vec3(0.0f);
+	        cube_rotation = glm::vec3(0.0f);
+	        cube_scale = glm::vec3(1.0f);
+	      }
+	    }
+   	}
     ImGui::End();
     
     
@@ -402,6 +457,7 @@ int main()
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
     texture_color.bind_texture_unit(0);
+    texture_normal.bind_texture_unit(1);
     
     cube_vao.bind();
     glDrawArrays(GL_TRIANGLES, 0, cube_vertices);

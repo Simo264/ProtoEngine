@@ -33,13 +33,17 @@ public:
   auto gaze() const { return orientation * glm::vec3(0, 0, -1); }
   auto up() const { return orientation * glm::vec3(0, 1,  0); }
   auto right() const { return orientation * glm::vec3(1, 0,  0); }
-  void set_orientation(const glm::vec3 euler_angles) { orientation = glm::quat(glm::radians(euler_angles)); }
+  
+  // The `euler_angles` parameter must be in radians 
+  void set_orientation(const glm::vec3& euler_angles) { orientation = glm::quat(euler_angles); }
+  // Returns the angles in radians
+  auto get_euler_angles() const { return glm::eulerAngles(orientation); }
   
 	glm::vec3 eye; 	// camera position
 	glm::quat orientation;
 
 	f32 near;				// near plane distance
 	f32 far;				// far plane distance
-	f32 fovy; 			// vertical fov
+	f32 fovy; 			// vertical fov in radians
 	f32 aspect;			// the aspect ratio of the viewport
 };
