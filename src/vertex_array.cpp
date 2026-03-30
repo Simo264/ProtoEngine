@@ -56,9 +56,9 @@ void VerteArray::set_attrib_format_long(u32 attrindex, i32 size, VertexAttribTyp
   glVertexArrayAttribLFormat(m_id, attrindex, size, static_cast<i32>(type), offset);
 }
 
-void VerteArray::attach_index_buffer(BufferID buffer) const
+void VerteArray::attach_index_buffer(Buffer buffer) const
 {
-  glVertexArrayElementBuffer(m_id, buffer);
+  glVertexArrayElementBuffer(m_id, buffer.id());
 }
 
 void VerteArray::detach_index_buffer() const
@@ -66,9 +66,9 @@ void VerteArray::detach_index_buffer() const
   glVertexArrayElementBuffer(m_id, 0);
 }
 
-void VerteArray::attach_vertex_buffer(u32 bindingindex, BufferID buffer, i32 offset, i64 stride) const
+void VerteArray::attach_vertex_buffer(u32 bindingindex, Buffer buffer, i32 offset, i64 stride) const
 {
-  glVertexArrayVertexBuffer(m_id, bindingindex, buffer, offset, stride);
+  glVertexArrayVertexBuffer(m_id, bindingindex, buffer.id(), offset, stride);
 }
 
 void VerteArray::link_attrib(u32 attrindex, u32 bindingindex) const

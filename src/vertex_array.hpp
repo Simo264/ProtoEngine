@@ -55,7 +55,7 @@ public:
   void set_attrib_format_long(u32 attrindex, i32 size, VertexAttribType type, u32 offset) const;
   
   // Specifies the buffer object to use for the element array buffer binding.
-  void attach_index_buffer(BufferID buffer) const;
+  void attach_index_buffer(Buffer buffer) const;
   // Any existing element array buffer binding to vertex array object is removed.
   void detach_index_buffer() const;
   
@@ -63,7 +63,7 @@ public:
   // The `bindingindex` is the index of the vertex buffer binding point to which to bind the buffer.
   // The `offset` is the offset (in bytes) of the first element of the buffer.
   // The `stride` is the distance (in bytes) between elements within the buffer. 
-  void attach_vertex_buffer(u32 bindingindex, BufferID buffer, i32 offset, i64 stride) const;
+  void attach_vertex_buffer(u32 bindingindex, Buffer buffer, i32 offset, i64 stride) const;
   
   // Associate a vertex attribute and a vertex buffer binding for a vertex array object.
   // The `attrindex` is the index of the attribute to associate with a vertex buffer binding.

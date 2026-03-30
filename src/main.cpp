@@ -2,22 +2,22 @@
 #include <GLFW/glfw3.h>
 #include <filesystem>
 #include <print>
-#include <array>
 
 #include "basic_types.hpp"
-#include "glm/ext/quaternion_geometric.hpp"
-#include "glm/ext/vector_float3.hpp"
 #include "pipeline.hpp"
 #include "buffer.hpp"
+#include "static_mesh.hpp"
 #include "vertex_array.hpp"
 #include "camera.hpp"
 #include "texture.hpp"
+#include "vertex.hpp"
 
 #include <glm/mat2x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/trigonometric.hpp>
+#include <glm/ext/vector_float3.hpp>
 
 #include <stb_image.h>
 
@@ -32,14 +32,6 @@ static auto aspect_ratio = static_cast<f32>(WINDOW_W) / static_cast<f32>(WINDOW_
 static auto program_vertex_object = ShaderProgram{};
 static auto program_fragment_object = ShaderProgram{};
 static auto pipeline_object = ProgramPipelineObject{};
-
-struct Vertex
-{
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec2 texcoord;
-	glm::vec3 tangent;
-};
 
 GLFWwindow* init_context()
 {
@@ -121,13 +113,13 @@ void create_pipeline_object()
    	std::println("pipeline object status: {}", pipeline_object.get_validation_status());
 }
 
-void compute_tangents(std::array<Vertex, 36>& vertices) 
+void compute_tangents(Vertex* vertices, u32 nr_vertices)
 {
-  for (auto i = 0u; i < vertices.size(); i += 3) 
+  for (auto i = 0u; i < nr_vertices; i += 3) 
   {
-  	auto& v0 = vertices.at(i);
-  	auto& v1 = vertices.at(i+1);
-  	auto& v2 = vertices.at(i+2);
+  	auto& v0 = vertices[i];
+  	auto& v1 = vertices[i+1];
+  	auto& v2 = vertices[i+2];
    	auto e1 = v1.position - v0.position;
     auto e2 = v2.position - v0.position; 
     auto delta_U1 = v1.texcoord.x - v0.texcoord.x;
@@ -163,10 +155,8 @@ void compute_tangents(std::array<Vertex, 36>& vertices)
   }
 }
 
-VerteArray create_cube_object(u32& n_vertices, u32& n_indices)
+auto get_cube_vertices()
 {
-	// let's define our vertices in local space
-	constexpr auto n_vertex_components = 11u;
 	auto vertices = std::array {
     Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
     Vertex{ { 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
@@ -205,43 +195,8 @@ VerteArray create_cube_object(u32& n_vertices, u32& n_indices)
     Vertex{ {-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f,  0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
     Vertex{ {-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} }
 	};
-	
-	compute_tangents(vertices);
-	
-  auto vbo = Buffer{};
-  vbo.create();
-  vbo.allocate_storage(sizeof(vertices), vertices.data(), BufferUsageFlags::DynamicStorage);
-  
-  // auto ibo = Buffer{};
-  // ibo.create();
-  // ibo.allocate_storage(sizeof(indices), indices.data(), BufferUsageFlags::DynamicStorage);
-
-  auto vao = VerteArray{};
-  vao.create();
-  // Attribute 0: position(xyz) — offset 0
-  vao.set_attrib_format_float(0, 3, VertexAttribType::Float, false, 0);
-  // Attribute 1: normal(x,y,z) — offset 3 * sizeof(f32)
-  vao.set_attrib_format_float(1, 3, VertexAttribType::Float, false, 3 * sizeof(f32));
-  // Attribute 2: texcoord(uv) — offset 6 * sizeof(f32)
-  vao.set_attrib_format_float(2, 2, VertexAttribType::Float, false, 6 * sizeof(f32));
-  // Attribute 3: tangent(x,y,z) — offset 8 * sizeof(f32)
-  vao.set_attrib_format_float(3, 3, VertexAttribType::Float, false, 8 * sizeof(f32));
-
-  vao.attach_vertex_buffer(0, vbo.id(), 0, n_vertex_components * sizeof(f32));
-  vao.link_attrib(0, 0);
-  vao.link_attrib(1, 0); 
-  vao.link_attrib(2, 0); 
-  vao.link_attrib(3, 0); 
-  vao.enable_attrib(0);
-  vao.enable_attrib(1);
-  vao.enable_attrib(2);
-  vao.enable_attrib(3);
-  //vao.attach_index_buffer(ibo.id());
-  
-  //n_indices = indices.size(); 
-  n_indices = 0;
-  n_vertices = vertices.size();
-  return vao;
+	compute_tangents(vertices.data(), vertices.size());
+	return vertices;
 }
 
 glm::mat4 calculate_transformation_matrix(const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation)
@@ -369,9 +324,9 @@ int main()
   // define the camera
   auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
   
-  // define the cube object
-  auto cube_indices = 0u, cube_vertices = 0u;
-  auto cube_vao = create_cube_object(cube_vertices, cube_indices);
+  // define the cube mesh
+ 	auto vertices = get_cube_vertices();
+	auto cube_mesh = StaticMesh(vertices.data(), vertices.size(), nullptr, 0); 
   auto cube_position = glm::vec3(0.f);
   auto cube_rotation = glm::vec3(0.f);
   auto cube_scale = glm::vec3(1.f);
@@ -407,40 +362,38 @@ int main()
     ImGui::NewFrame();
     
     ImGui::Begin("Scene");
-  	{
-	    if (ImGui::CollapsingHeader("Proprietà Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
-	    {
-	      auto fov = glm::degrees(camera.fovy);
-	      if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
-	        camera.fovy = glm::radians(fov);
-	  
-				auto euler_angles = glm::degrees(camera.get_euler_angles());
-				ImGui::Text("Camera Position: X:%.2f, Y:%.2f, Z:%.2f", camera.eye.x, camera.eye.y, camera.eye.z);
-    		ImGui::BulletText("P: %.2f°  Y: %.2f°  R: %.2f°", euler_angles.x, euler_angles.y, euler_angles.z);
-	      
-	      if (ImGui::Button("Reset Camera")) 
-	      {
-	        camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
-	        camera.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-	        camera.fovy = glm::radians(45.0f);
-	      }
-	    }    
-	    ImGui::Spacing();
-	    ImGui::Separator();
-	    ImGui::Spacing();
-	    if (ImGui::CollapsingHeader("Cube", ImGuiTreeNodeFlags_DefaultOpen)) 
-	    {
-	      ImGui::DragFloat3("Position", &cube_position[0], 0.1f);
-	      ImGui::DragFloat3("Rotation", &cube_rotation[0], 1.0f); // In gradi
-	      ImGui::DragFloat3("Scale", &cube_scale[0], 0.05f, 0.1f, 10.0f);
-	      if (ImGui::Button("Reset"))
-	      {
-	        cube_position = glm::vec3(0.0f);
-	        cube_rotation = glm::vec3(0.0f);
-	        cube_scale = glm::vec3(1.0f);
-	      }
-	    }
-   	}
+    if (ImGui::CollapsingHeader("Proprietà Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
+    {
+      auto fov = glm::degrees(camera.fovy);
+      if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
+        camera.fovy = glm::radians(fov);
+  
+			auto euler_angles = glm::degrees(camera.get_euler_angles());
+			ImGui::Text("Camera Position: X:%.2f, Y:%.2f, Z:%.2f", camera.eye.x, camera.eye.y, camera.eye.z);
+  		ImGui::BulletText("P: %.2f°  Y: %.2f°  R: %.2f°", euler_angles.x, euler_angles.y, euler_angles.z);
+      
+      if (ImGui::Button("Reset Camera")) 
+      {
+        camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
+        camera.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        camera.fovy = glm::radians(45.0f);
+      }
+    }    
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("Cube", ImGuiTreeNodeFlags_DefaultOpen)) 
+    {
+      ImGui::DragFloat3("Position", &cube_position[0], 0.1f);
+      ImGui::DragFloat3("Rotation", &cube_rotation[0], 1.0f); // In gradi
+      ImGui::DragFloat3("Scale", &cube_scale[0], 0.05f, 0.1f, 10.0f);
+      if (ImGui::Button("Reset"))
+      {
+        cube_position = glm::vec3(0.0f);
+        cube_rotation = glm::vec3(0.0f);
+        cube_scale = glm::vec3(1.0f);
+      }
+    }
     ImGui::End();
     
     auto mat_transform = calculate_transformation_matrix(cube_position, cube_scale, cube_rotation);
@@ -460,8 +413,8 @@ int main()
     texture_color.bind_texture_unit(0);
     texture_normal.bind_texture_unit(1);
     
-    cube_vao.bind();
-    glDrawArrays(GL_TRIANGLES, 0, cube_vertices);
+    cube_mesh.vao().bind();
+    glDrawArrays(GL_TRIANGLES, 0, cube_mesh.nr_vertices());
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
