@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
+set(FETCHCONTENT_QUIET FALSE)
 
 file(GLOB_RECURSE PROTOENGINE_SOURCES
   "${CMAKE_SOURCE_DIR}/src/*.cpp"
@@ -27,7 +28,6 @@ FetchContent_Declare(
   GIT_TAG        3.4
   GIT_SHALLOW    TRUE
   GIT_PROGRESS   TRUE
-  SOURCE_DIR     ${CMAKE_SOURCE_DIR}/dependencies/glfw
 )
 FetchContent_MakeAvailable(glfw)
 
@@ -36,10 +36,29 @@ FetchContent_Declare(
  glm
  GIT_REPOSITORY	https://github.com/g-truc/glm.git
  GIT_TAG         0af55ccecd98d4e5a8d1fad7de25ba429d60e863
+ GIT_SHALLOW     TRUE
  GIT_PROGRESS    TRUE
- SOURCE_DIR      ${CMAKE_SOURCE_DIR}/dependencies/glm
 )
 FetchContent_MakeAvailable(glm)
+
+# include Assimp
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "Disable building Assimp tests" FORCE)
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "Disable building Assimp tools" FORCE)
+set(ASSIMP_INSTALL OFF CACHE BOOL "Do not create install target for Assimp" FORCE)
+
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "Disable building all importers" FORCE)
+set(ASSIMP_BUILD_FBX_IMPORTER ON CACHE BOOL "Build FBX importer" FORCE)
+set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "Build OBJ importer" FORCE)
+
+FetchContent_Declare(
+  assimp
+  GIT_REPOSITORY https://github.com/assimp/assimp.git
+  GIT_TAG        v6.0.4
+  GIT_SHALLOW    TRUE
+  GIT_PROGRESS   TRUE
+)
+FetchContent_MakeAvailable(assimp)
 
 add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/glad")
 add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/imgui")
@@ -49,7 +68,6 @@ add_executable(ProtoEngine ${PROTOENGINE_SOURCES})
 
 target_include_directories(ProtoEngine PRIVATE
   "${CMAKE_SOURCE_DIR}/src"
-  "${CMAKE_SOURCE_DIR}/dependencies/glfw/include"
 )
 
 target_link_libraries(ProtoEngine PRIVATE
@@ -59,6 +77,7 @@ target_link_libraries(ProtoEngine PRIVATE
   glm::glm
   stb::stb_image
   imgui::imgui
+  assimp
 )
 
 target_compile_options(ProtoEngine PRIVATE -Wall -Wextra -Wpedantic)

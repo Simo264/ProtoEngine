@@ -13,7 +13,9 @@ Librerie usate:
 ## Build instructions
 
 ```bash
-cmake -S . -B ./build -D GLFW_BUILD_WAYLAND=1 -D GLFW_BUILD_X11=0
+cmake -S . -B ./build -DGLFW_BUILD_WAYLAND=1 -DGLFW_BUILD_X11=0 -DCMAKE_VERBOSE_MAKEFILE=ON
+
+=ON
 cmake --build ./build --config Debug --target all -j8
  ./build/ProtoEngine
 ```

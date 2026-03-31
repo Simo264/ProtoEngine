@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(imgui LANGUAGES C CXX)
 
-set(IMGUI_SOURCES 
+set(IMGUI_SOURCES
   imgui.cpp
   imgui_impl_opengl3.cpp
   imgui_demo.cpp
@@ -25,9 +25,11 @@ set_target_properties(imgui PROPERTIES
 
 target_compile_definitions(imgui PUBLIC IMGUI_IMPL_OPENGL_LOADER_GLAD)
 target_include_directories(imgui PUBLIC "${CMAKE_SOURCE_DIR}/dependencies/glad/include")
-target_include_directories(imgui PUBLIC "${CMAKE_SOURCE_DIR}/dependencies/glfw/include")
 
 find_package(OpenGL QUIET)
-target_link_libraries(imgui PUBLIC OpenGL::GL)
+target_link_libraries(imgui PUBLIC 
+	OpenGL::GL 
+	glfw 
+	glad)
 
 add_library(imgui::imgui ALIAS imgui)
