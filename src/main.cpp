@@ -71,6 +71,21 @@ GLFWwindow* init_context()
   return window;
 }
 
+void handle_camera_input(auto window, auto& camera)
+{
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
+  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    camera.rotate_pitch(+glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  camera.rotate_pitch(-glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  camera.rotate_yaw(+glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camera.rotate_yaw(-glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)     camera.eye += camera.gaze() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)     camera.eye -= camera.gaze() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)     camera.eye -= camera.right() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)     camera.eye += camera.right() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)          camera.eye += camera.up() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)   camera.eye -= camera.up() * 0.1f;
+}
+
 void create_pipeline_object()
 {
   auto shaders_dir = std::filesystem::current_path() / "shaders";
@@ -275,10 +290,8 @@ StaticMesh import_model(const std::filesystem::path& filepath)
 int main() 
 { 
 	auto window = init_context();
-	
   // define the program pipeline
   create_pipeline_object();
-  
   // create the texture color and normal map
   // texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_COL_2K.jpg");
   // texture_normal = create_texture_normal(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_NRM_2K.png");
@@ -297,18 +310,8 @@ int main()
   
   while (!glfwWindowShouldClose(window))
   {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    camera.rotate_pitch(+glm::radians(1.0f));
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  camera.rotate_pitch(-glm::radians(1.0f));
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  camera.rotate_yaw(+glm::radians(1.0f));
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camera.rotate_yaw(-glm::radians(1.0f));
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)     camera.eye += camera.gaze() * 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)     camera.eye -= camera.gaze() * 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)     camera.eye -= camera.right() * 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)     camera.eye += camera.right() * 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)          camera.eye += camera.up() * 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)   camera.eye -= camera.up() * 0.1f;
-    
+ 		handle_camera_input(window, camera);
+   
     auto time = glfwGetTime();
     model_transformation.rotation.y = glm::radians(time) * 32;
     

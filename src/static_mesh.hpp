@@ -37,6 +37,7 @@ public:
 	auto nr_indices() const { return m_nr_indices; }
 	auto vao() const { return m_vao; }
 	
+	auto is_drawable() const { return m_vao.is_valid() && m_vbo.is_valid(); }
 private:
 	u32 m_nr_vertices;
 	u32 m_nr_indices;

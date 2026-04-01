@@ -2,7 +2,7 @@
 
 #include <glm/trigonometric.hpp>
 
-glm::mat4 Transformation::calculate_tranformation()
+glm::mat4 Transformation::calculate_tranformation() const
 {
  // The explicit form of the affine tranfsormation:
  //
