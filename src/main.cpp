@@ -3,27 +3,33 @@
 #include <filesystem>
 #include <print>
 
+#include "assimp/material.h"
+#include "assimp/types.h"
 #include "basic_types.hpp"
 #include "pipeline.hpp"
-#include "buffer.hpp"
 #include "static_mesh.hpp"
 #include "vertex_array.hpp"
 #include "camera.hpp"
 #include "texture.hpp"
 #include "vertex.hpp"
+#include "transformation.hpp"
 
 #include <glm/mat2x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/trigonometric.hpp>
-#include <glm/ext/vector_float3.hpp>
 
 #include <stb_image.h>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+
+#include <assimp/Importer.hpp>      // C++ importer interface
+#include <assimp/scene.h>           // Output data structure
+#include <assimp/postprocess.h>     // Post processing flags
+#include <vector>
 
 static constexpr auto WINDOW_W = 640;
 static constexpr auto WINDOW_H = 480;
@@ -32,6 +38,9 @@ static auto aspect_ratio = static_cast<f32>(WINDOW_W) / static_cast<f32>(WINDOW_
 static auto program_vertex_object = ShaderProgram{};
 static auto program_fragment_object = ShaderProgram{};
 static auto pipeline_object = ProgramPipelineObject{};
+
+static auto texture_color = Texture{};
+static auto texture_normal = Texture{};
 
 GLFWwindow* init_context()
 {
@@ -113,160 +122,7 @@ void create_pipeline_object()
    	std::println("pipeline object status: {}", pipeline_object.get_validation_status());
 }
 
-void compute_tangents(Vertex* vertices, u32 nr_vertices)
-{
-  for (auto i = 0u; i < nr_vertices; i += 3) 
-  {
-  	auto& v0 = vertices[i];
-  	auto& v1 = vertices[i+1];
-  	auto& v2 = vertices[i+2];
-   	auto e1 = v1.position - v0.position;
-    auto e2 = v2.position - v0.position; 
-    auto delta_U1 = v1.texcoord.x - v0.texcoord.x;
-    auto delta_V1 = v1.texcoord.y - v0.texcoord.y;
-    auto delta_U2 = v2.texcoord.x - v0.texcoord.x;
-    auto delta_V2 = v2.texcoord.y - v0.texcoord.y;
-    
-    // The UV matrix is a square matrix 2x2
-   	auto mat_uv = glm::mat2(
-      glm::vec2(delta_U1, delta_U2),
-      glm::vec2(delta_V1, delta_V2)
-    );
-    // The E matrix is a rectangular matrix 2x3
-    auto mat_edge = glm::mat3x2(
-      glm::vec2(e1.x, e2.x),
-      glm::vec2(e1.y, e2.y),
-      glm::vec2(e1.z, e2.z)
-    );
-    
-    auto mat_uv_inv = glm::inverse(mat_uv);
-    
-    // The TB matrix is a rectangular matrix 2x3
-    auto mat_tb =  mat_uv_inv * mat_edge;
-
-    auto tangent = glm::vec3{};
-    tangent.x = mat_tb[0][0];
-    tangent.y = mat_tb[1][0];
-    tangent.z = mat_tb[2][0];
-    
-    v0.tangent = tangent; 
-    v1.tangent = tangent; 
-    v2.tangent = tangent;
-  }
-}
-
-auto get_cube_vertices()
-{
-	auto vertices = std::array {
-    Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f,  1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f,  0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f,  0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f,  0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f,  0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f,  0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f,  0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f,  0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ { 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f,  0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f,  0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} },
-    Vertex{ {-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f,  0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 0.0f} }
-	};
-	compute_tangents(vertices.data(), vertices.size());
-	return vertices;
-}
-
-glm::mat4 calculate_transformation_matrix(const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation)
-{
-  auto S = glm::mat3 {
-   	scale.x, 0.0f, 0.0f, 
-   	0.0f, scale.y, 0.0f, 
-   	0.0f, 0.0f, scale.z 
-  };
-  
-  auto cx = glm::cos(rotation.x);
-  auto sx = glm::sin(rotation.x);
-  auto R_x = glm::mat3 {
-      1.0f,  0.0f, 0.0f,
-      0.0f,  cx,   sx,
-      0.0f, -sx,   cx
-  };
-  auto cy = glm::cos(rotation.y);
-  auto sy = glm::sin(rotation.y);
-  auto R_y = glm::mat3 {
-       cy,  0.0f, sy,
-      0.0f, 1.0f, 0.0f,
-      -sy,  0.0f, cy
-  };
-  
-  auto cz = glm::cos(rotation.z);
-  auto sz = glm::sin(rotation.z);
-  auto R_z = glm::mat3 {
-       cz,  sz,   0.0f,
-      -sz,  cz,   0.0f,
-      0.0f, 0.0f, 1.0f 
-  };
-  
-  auto R = R_z * R_y * R_x;
-  auto RS = R * S;
-  auto M = glm::mat4 {
-    glm::vec4(RS[0], 0.0f),
-    glm::vec4(RS[1], 0.0f),
-    glm::vec4(RS[2], 0.0f),
-    glm::vec4(position, 1.0f)    
-  }; 
-  
-  return M;
-}
-
-constexpr glm::mat4 calculate_frame_to_canonical()
-{
-	// let's transform the vertices from local space to global space.
-	// The frame-to-canonical matrix takes a point expressed in the local system (e,u,v,w) and converts it into the global system 
-	// (o,x,y,z):
-	// 
-	//         | x_u   x_v   x_w   x_e | | u_p | 
-	//         | y_u   y_v   y_w   y_e | | v_p | 
-	// P_xyz = | z_u   z_v   z_w   z_e | | w_p | 
-	//         | 0     0     0     1   | | 1   | 
-	
-	constexpr auto frame_e = glm::vec3(0.0f, 0.0f, 0.0f); 
-	constexpr auto frame_u = glm::vec3(1.0f, 0.0f, 0.0f); 
-	constexpr auto frame_v = glm::vec3(0.0f, 1.0f, 0.0f);
-	constexpr auto frame_w = glm::vec3(0.0f, 0.0f, 1.0f);
-	constexpr auto m_ftc = glm::mat4 {
-	  glm::vec4(frame_u, 0.0f),
-	  glm::vec4(frame_v, 0.0f),
-	  glm::vec4(frame_w, 0.0f),
-	  glm::vec4(frame_e, 1.0f)
-	};
-	return m_ftc;
-}
-
-Texture create_texture_color(const std::filesystem::path& filepath)
+Texture create_texture_color_from_file(const std::filesystem::path& filepath)
 {
  	if(!std::filesystem::exists(filepath))
     exit(1);
@@ -288,7 +144,7 @@ Texture create_texture_color(const std::filesystem::path& filepath)
   return texture;
 }
 
-Texture create_texture_normal(const std::filesystem::path& filepath)
+Texture create_texture_normal_from_file(const std::filesystem::path& filepath)
 {
   if(!std::filesystem::exists(filepath))
     exit(1);
@@ -310,6 +166,112 @@ Texture create_texture_normal(const std::filesystem::path& filepath)
   return texture;
 }
 
+StaticMesh import_model(const std::filesystem::path& filepath)
+{
+	if(!std::filesystem::exists(filepath))
+    exit(1);
+	
+ 	// Create an instance of the Importer class
+ 	auto importer = Assimp::Importer{};
+  const auto scene = importer.ReadFile(filepath.string().c_str(),
+      aiProcess_CalcTangentSpace       |
+      aiProcess_Triangulate            |
+      aiProcess_FlipUVs 							 | 
+      aiProcess_JoinIdenticalVertices);
+  
+  // If the import failed, report it
+  if (scene == nullptr) 
+  {
+  	std::println("Error on loading scene {}: {}", filepath.string(), importer.GetErrorString());
+    exit(1);
+  }
+  
+  // Now we can access the file's contents.
+  std::println("num meshes: {}", scene->mNumMeshes);
+  auto aimesh = scene->mMeshes[0];
+  
+  // load vertices
+  auto vertices = std::vector<Vertex>{};
+  vertices.reserve(aimesh->mNumVertices);
+  for (auto i = 0u; i < aimesh->mNumVertices; i++)
+  {
+  	auto& vertex = vertices.emplace_back();
+   	vertex.position = glm::vec3{ aimesh->mVertices[i].x,aimesh->mVertices[i].y,aimesh->mVertices[i].z };
+    if (aimesh->HasNormals())
+    	vertex.normal = glm::vec3{ aimesh->mNormals[i].x, aimesh->mNormals[i].y, aimesh->mNormals[i].z };
+    if (aimesh->HasTextureCoords(0)) 
+    	vertex.texcoord = glm::vec2{ aimesh->mTextureCoords[0][i].x, aimesh->mTextureCoords[0][i].y };
+    if(aimesh->HasTangentsAndBitangents())
+    	vertex.tangent = glm::vec3{ aimesh->mTangents[i].x, aimesh->mTangents[i].y, aimesh->mTangents[i].z,};
+  }
+  
+  // load indices
+  auto indices = std::vector<u32>{};
+  indices.reserve(aimesh->mNumFaces * 3);
+  for (auto i = 0u; i < aimesh->mNumFaces; i++)
+  {
+  	auto face = aimesh->mFaces[i];
+   	indices.emplace_back(face.mIndices[0]);
+   	indices.emplace_back(face.mIndices[1]);
+   	indices.emplace_back(face.mIndices[2]);
+  }
+  
+  auto material = scene->mMaterials[aimesh->mMaterialIndex];
+  std::println("num unkknow texturess: {}", material->GetTextureCount(aiTextureType_UNKNOWN));
+  std::println("num diffuse textures: {}", material->GetTextureCount(aiTextureType_DIFFUSE));
+  std::println("num normal textures: {}", material->GetTextureCount(aiTextureType_NORMALS));
+  
+  auto path = aiString{};
+  if(material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
+  {
+  	auto ai_texture = scene->GetEmbeddedTexture(path.C_Str());
+ 		std::println("Texture color found: width={}, height={}", ai_texture->mWidth, ai_texture->mHeight);
+   
+   	auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
+    auto data = stbi_load_from_memory(
+    	reinterpret_cast<unsigned char*>(ai_texture->pcData), 
+    					ai_texture->mWidth, 
+              &width,&height, 
+              &nr_channels, 
+              STBI_rgb);
+   
+    if (!data) 
+    {
+  		std::println("Errore caricamento texture embedded");
+      exit(1);
+    }
+    
+    auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);
+    
+   	texture_color.create(TextureType::Texture2D);
+    texture_color.set_storage_tex2D(levels, TextureImageFormat::RGB8, width, height);
+    texture_color.update_content_tex2D(
+        0, 0, 0,
+        width, height,
+        PixelDataFormat::RGB,
+        PixelDataType::UnsignedByte,
+        data
+    );
+    
+    texture_color.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
+    texture_color.set_magnification_filter(TextureFilteringMode::Linear);
+    texture_color.set_minification_filter(TextureFilteringMode::LinearMipmapLinear);
+    texture_color.generate_mipmaps();
+    stbi_image_free(data);
+  }  
+  if(material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS)
+  {
+  	std::println("Texture normal found");
+  	// auto ai_texture = scene->GetEmbeddedTexture(path.C_Str());
+  }
+  if(material->GetTexture(aiTextureType_UNKNOWN, 0, &path) == AI_SUCCESS)
+  {
+  	std::println("Unkown texture found");
+  } 
+  
+  return StaticMesh(vertices.data(), vertices.size(), indices.data(), indices.size());
+}
+
 int main() 
 { 
 	auto window = init_context();
@@ -318,18 +280,14 @@ int main()
   create_pipeline_object();
   
   // create the texture color and normal map
-  auto texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_COL_2K.jpg");
-  auto texture_normal = create_texture_normal(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_NRM_2K.png");
+  // texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_COL_2K.jpg");
+  // texture_normal = create_texture_normal(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_NRM_2K.png");
   
   // define the camera
   auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
   
-  // define the cube mesh
- 	auto vertices = get_cube_vertices();
-	auto cube_mesh = StaticMesh(vertices.data(), vertices.size(), nullptr, 0); 
-  auto cube_position = glm::vec3(0.f);
-  auto cube_rotation = glm::vec3(0.f);
-  auto cube_scale = glm::vec3(1.f);
+  auto car_model = import_model(std::filesystem::current_path() / "res/models/car.glb");
+  auto model_transformation = Transformation{};
   
   glEnable(GL_DEPTH_TEST);              // enable depth testing
   glDepthFunc(GL_LESS);                 // specify the value used for depth buffer comparisons
@@ -352,7 +310,7 @@ int main()
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)   camera.eye -= camera.up() * 0.1f;
     
     auto time = glfwGetTime();
-    cube_rotation.y = glm::radians(time) * 32;
+    model_transformation.rotation.y = glm::radians(time) * 32;
     
    	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
     
@@ -360,7 +318,6 @@ int main()
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    
     ImGui::Begin("Scene");
     if (ImGui::CollapsingHeader("Proprietà Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
     {
@@ -382,22 +339,21 @@ int main()
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    if (ImGui::CollapsingHeader("Cube", ImGuiTreeNodeFlags_DefaultOpen)) 
+    if (ImGui::CollapsingHeader("Model", ImGuiTreeNodeFlags_DefaultOpen)) 
     {
-      ImGui::DragFloat3("Position", &cube_position[0], 0.1f);
-      ImGui::DragFloat3("Rotation", &cube_rotation[0], 1.0f); // In gradi
-      ImGui::DragFloat3("Scale", &cube_scale[0], 0.05f, 0.1f, 10.0f);
+      ImGui::DragFloat3("Position", &model_transformation.position[0], 0.1f);
+      ImGui::DragFloat3("Rotation", &model_transformation.rotation[0], 1.0f);
+      ImGui::DragFloat3("Scale", &model_transformation.scale[0], 0.05f, 0.1f, 10.0f);
       if (ImGui::Button("Reset"))
       {
-        cube_position = glm::vec3(0.0f);
-        cube_rotation = glm::vec3(0.0f);
-        cube_scale = glm::vec3(1.0f);
+        model_transformation.position = glm::vec3(0.0f);
+        model_transformation.rotation = glm::vec3(0.0f);
+        model_transformation.scale = glm::vec3(1.0f);
       }
     }
     ImGui::End();
     
-    auto mat_transform = calculate_transformation_matrix(cube_position, cube_scale, cube_rotation);
-    constexpr auto mat_ftc = calculate_frame_to_canonical();
+    auto mat_transform = model_transformation.calculate_tranformation();
     camera.aspect = aspect_ratio;
     auto mat_camera = camera.canonical_to_camera();
     auto mat_persp = camera.get_perspective();
@@ -405,16 +361,16 @@ int main()
     pipeline_object.bind();
     pipeline_object.set_active_program(program_vertex_object);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), &mat_transform[0][0]);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_ftc"), &mat_ftc[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
     pipeline_object.set_active_program(program_fragment_object);
     program_fragment_object.set_uniform_vector3f(program_fragment_object.get_uniform_location("u_camera_eye"), &camera.eye[0]); 
     texture_color.bind_texture_unit(0);
-    texture_normal.bind_texture_unit(1);
+    // texture_normal.bind_texture_unit(1);
     
-    cube_mesh.vao().bind();
-    glDrawArrays(GL_TRIANGLES, 0, cube_mesh.nr_vertices());
+    car_model.vao().bind();
+    glDrawElements(GL_TRIANGLES, car_model.nr_indices(), GL_UNSIGNED_INT, 0);
+    // glDrawArrays(GL_TRIANGLES, 0, cube_mesh.nr_vertices());
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

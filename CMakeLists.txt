@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 3.14)
+SET(CMAKE_POLICY_DEFAULT_CMP0012 NEW)
+SET(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
+SET(CMAKE_POLICY_DEFAULT_CMP0092 NEW)
+
+cmake_minimum_required(VERSION 3.22)
 
 project(ProtoEngine VERSION 0.1 LANGUAGES CXX)
 
@@ -43,13 +47,16 @@ FetchContent_MakeAvailable(glm)
 
 # include Assimp
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+# Disable all importers by default
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "Disable building all importers" FORCE)
+# Disable tools, tests, and exporters to reduce build size
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "Disable building Assimp tests" FORCE)
 set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "Disable building Assimp tools" FORCE)
 set(ASSIMP_INSTALL OFF CACHE BOOL "Do not create install target for Assimp" FORCE)
-
-set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "Disable building all importers" FORCE)
+# Explicitly enable the glTF (and thus GLB), FBX and OBJ importers
 set(ASSIMP_BUILD_FBX_IMPORTER ON CACHE BOOL "Build FBX importer" FORCE)
 set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "Build OBJ importer" FORCE)
+set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "Build glTF importer" FORCE)
 
 FetchContent_Declare(
   assimp

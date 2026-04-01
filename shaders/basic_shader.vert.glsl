@@ -6,7 +6,6 @@ layout(location = 2) in vec2 in_texcoord; // in local coordinate system
 layout(location = 3) in vec3 in_tangent; 	// in tangent coordinate system
 
 uniform mat4 mat_transform;
-uniform mat4 mat_ftc;
 uniform mat4 mat_cam; 
 uniform mat4 mat_per;
 
@@ -17,10 +16,9 @@ out mat3 vs_out_TBN;
  
 void main()
 {
-	// apply transform
-  vec4 p_local_space = mat_transform * vec4(in_pos, 1.0f);
+  vec4 p_local_space = vec4(in_pos, 1.0f);
   // frame to canonical space
-  vec4 p_world_space = mat_ftc * p_local_space;
+  vec4 p_world_space = mat_transform * p_local_space;
   vs_out_frag_world_space = vec3(p_world_space);
   // canonical to camera space
   vec4 p_camera_space = mat_cam * p_world_space;
@@ -28,7 +26,7 @@ void main()
   vec4 p_clip_space = mat_per * p_camera_space;
   
   // normal transformation for non-uniform scaling: N = (M^-1)^T
-  mat3 normal_matrix = transpose(inverse(mat3(mat_ftc * mat_transform)));
+  mat3 normal_matrix = transpose(inverse(mat3(mat_transform)));
   vec3 normal_world_space = normal_matrix * in_normal;
   
   // normal mapping: calculate the TBN matrix to transform normals extracted from the texture into model space
