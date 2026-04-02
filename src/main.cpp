@@ -1,6 +1,7 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <filesystem>
+#include <memory>
 #include <print>
 
 #include "assimp/material.h"
@@ -13,12 +14,18 @@
 #include "texture.hpp"
 #include "vertex.hpp"
 #include "transformation.hpp"
+#include "scene_graph.hpp"
 
 #include <glm/mat2x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/trigonometric.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+#define GLM_ENABLE_EXPERIMENTAL 
+#include <glm/gtx/matrix_decompose.hpp>
 
 #include <stb_image.h>
 
@@ -42,7 +49,7 @@ static auto pipeline_object = ProgramPipelineObject{};
 static auto texture_color = Texture{};
 static auto texture_normal = Texture{};
 
-GLFWwindow* init_context()
+static auto init_context()
 {
 	glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -71,22 +78,7 @@ GLFWwindow* init_context()
   return window;
 }
 
-void handle_camera_input(auto window, auto& camera)
-{
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
-  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    camera.rotate_pitch(+glm::radians(1.0f));
-  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  camera.rotate_pitch(-glm::radians(1.0f));
-  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  camera.rotate_yaw(+glm::radians(1.0f));
-  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camera.rotate_yaw(-glm::radians(1.0f));
-  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)     camera.eye += camera.gaze() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)     camera.eye -= camera.gaze() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)     camera.eye -= camera.right() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)     camera.eye += camera.right() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)          camera.eye += camera.up() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)   camera.eye -= camera.up() * 0.1f;
-}
-
-void create_pipeline_object()
+static void create_pipeline_object()
 {
   auto shaders_dir = std::filesystem::current_path() / "shaders";
   
@@ -137,7 +129,23 @@ void create_pipeline_object()
    	std::println("pipeline object status: {}", pipeline_object.get_validation_status());
 }
 
-Texture create_texture_color_from_file(const std::filesystem::path& filepath)
+static void handle_camera_input(auto window, auto& camera)
+{
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
+  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    camera.rotate_pitch(+glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  camera.rotate_pitch(-glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  camera.rotate_yaw(+glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camera.rotate_yaw(-glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)     camera.eye += camera.gaze() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)     camera.eye -= camera.gaze() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)     camera.eye -= camera.right() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)     camera.eye += camera.right() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)          camera.eye += camera.up() * 0.1f;
+  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)   camera.eye -= camera.up() * 0.1f;
+}
+
+#if 0
+static Texture create_texture_color_from_file(const std::filesystem::path& filepath)
 {
  	if(!std::filesystem::exists(filepath))
     exit(1);
@@ -159,7 +167,7 @@ Texture create_texture_color_from_file(const std::filesystem::path& filepath)
   return texture;
 }
 
-Texture create_texture_normal_from_file(const std::filesystem::path& filepath)
+static Texture create_texture_normal_from_file(const std::filesystem::path& filepath)
 {
   if(!std::filesystem::exists(filepath))
     exit(1);
@@ -180,8 +188,9 @@ Texture create_texture_normal_from_file(const std::filesystem::path& filepath)
   texture.generate_mipmaps();
   return texture;
 }
+#endif 
 
-StaticMesh import_model(const std::filesystem::path& filepath)
+static auto import_model(const std::filesystem::path& filepath)
 {
 	if(!std::filesystem::exists(filepath))
     exit(1);
@@ -284,96 +293,173 @@ StaticMesh import_model(const std::filesystem::path& filepath)
   	std::println("Unkown texture found");
   } 
   
-  return StaticMesh(vertices.data(), vertices.size(), indices.data(), indices.size());
+  return std::shared_ptr<StaticMesh>(new StaticMesh(vertices.data(), vertices.size(), indices.data(), indices.size()));
+}
+
+static void gui_camera_window(auto& camera)
+{
+	ImGui::Begin("Camera");
+  auto fov = glm::degrees(camera.fovy);
+  if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
+    camera.fovy = glm::radians(fov);
+
+  auto euler_angles = glm::degrees(camera.get_euler_angles());
+  ImGui::Text("Camera Position: X:%.2f, Y:%.2f, Z:%.2f", camera.eye.x, camera.eye.y, camera.eye.z);
+	ImGui::BulletText("P: %.2f°  Y: %.2f°  R: %.2f°", euler_angles.x, euler_angles.y, euler_angles.z);
+  if (ImGui::Button("Reset Camera")) 
+  {
+    camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
+    camera.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    camera.fovy = glm::radians(45.0f);
+  }
+  ImGui::End();
+  
+  // ImGui::Spacing();
+  // ImGui::Separator();
+  // ImGui::Spacing();
+  // if (ImGui::CollapsingHeader("Model", ImGuiTreeNodeFlags_DefaultOpen)) 
+  // {
+  //   ImGui::DragFloat3("Position", &model_transformation.position[0], 0.1f);
+  //   ImGui::DragFloat3("Rotation", &model_transformation.rotation[0], 1.0f);
+  //   ImGui::DragFloat3("Scale", &model_transformation.scale[0], 0.05f, 0.1f, 10.0f);
+  //   if (ImGui::Button("Reset"))
+  //   {
+  //     model_transformation.position = glm::vec3(0.0f);
+  //     model_transformation.rotation = glm::vec3(0.0f);
+  //     model_transformation.scale = glm::vec3(1.0f);
+  //   }
+  // }
+}
+
+static auto selected_node = std::shared_ptr<SceneNode>(nullptr);
+static void draw_scene_node(std::shared_ptr<SceneNode> node) 
+{
+  auto flags = node->children().empty() ? ImGuiTreeNodeFlags_Leaf : 0;
+
+  if (node == selected_node)
+    flags |= ImGuiTreeNodeFlags_Selected;
+
+  bool open = ImGui::TreeNodeEx( (void*)node.get(),flags, "%s", node->name.data());
+  if (ImGui::IsItemClicked())
+    selected_node = node;
+
+  if (open) 
+  {
+    for (auto child : node->children())
+      draw_scene_node(std::shared_ptr<SceneNode>(child));
+
+    ImGui::TreePop();
+  }
+}
+
+static void draw_inspector() 
+{
+  ImGui::Begin("Inspector");
+
+  if (selected_node) 
+  {
+    auto t = selected_node->local_transform();
+    bool changed = false;
+    changed |= ImGui::DragFloat3("Position", &t.position.x, 0.1f);
+    changed |= ImGui::DragFloat3("Rotation", &t.rotation.x, 0.5f);
+    changed |= ImGui::DragFloat3("Scale", &t.scale.x, 0.1f);
+    if (changed) 
+    {
+   		selected_node->set_transform(t);
+    }
+  }
+
+  ImGui::End();
+}
+
+static void gui_hierarchy_window(std::shared_ptr<SceneNode> root)
+{
+	ImGui::Begin("Scene graph");
+	draw_scene_node(root);
+	ImGui::End();
 }
 
 int main() 
 { 
 	auto window = init_context();
-  // define the program pipeline
-  create_pipeline_object();
-  // create the texture color and normal map
-  // texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_COL_2K.jpg");
+	
+	create_pipeline_object();
+	
+ 	auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
+
+	// texture_color = create_texture_color(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_COL_2K.jpg");
   // texture_normal = create_texture_normal(std::filesystem::current_path() / "res/materials/stonebricks/StoneBricksSplitface_NRM_2K.png");
   
-  // define the camera
-  auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
+  // let's define the scene graph hierarchy
+  auto car_mesh = import_model(std::filesystem::current_path() / "res/models/car.glb");
+
+  auto root_node = std::make_shared<SceneNode>("World");
+  auto car_node_1 = std::make_shared<SceneNode>("Car_1");
+  auto car_node_2 = std::make_shared<SceneNode>("Car_2");
+  car_node_1->set_mesh(car_mesh);
+  car_node_2->set_mesh(car_mesh);
   
-  auto car_model = import_model(std::filesystem::current_path() / "res/models/car.glb");
-  auto model_transformation = Transformation{};
+  root_node->add_child(car_node_1);
+  car_node_1->add_child(car_node_2);
   
-  glEnable(GL_DEPTH_TEST);              // enable depth testing
-  glDepthFunc(GL_LESS);                 // specify the value used for depth buffer comparisons
-  glDepthMask(GL_TRUE);                 // enable/disable writing into the depth buffer
-  glClearDepthf(1.0f);                  // specify the clear value for the depth buffer
+  car_node_1->set_parent(root_node);
+  car_node_2->set_parent(car_node_1);
+  
+  car_node_1->set_transform(Transformation{ .position = { 0.0f, 0.0f, 0.0f }, .scale={ 0.05f,0.05f,0.05f } });
+  car_node_2->set_transform(Transformation{ .position = { 0.0f, 0.0f, -5.0f }, .scale={ 0.05f,0.05f,0.05f }, .rotation = {0.0f, glm::radians(180.0f), 0.0f} });
+  
+  glEnable(GL_DEPTH_TEST);  	// enable depth testing
+  glDepthFunc(GL_LESS);    	// specify the value used for depth buffer comparisons
+  glDepthMask(GL_TRUE);    	// enable/disable writing into the depth buffer
+  glClearDepthf(1.0f);       	// specify the clear value for the depth buffer
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f); // specify the clear value for the color buffer
   
   while (!glfwWindowShouldClose(window))
   {
+ 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
+
  		handle_camera_input(window, camera);
+   	camera.aspect = aspect_ratio;
+    auto mat_camera = camera.canonical_to_camera();
+    auto mat_persp = camera.get_perspective();
    
-    auto time = glfwGetTime();
-    model_transformation.rotation.y = glm::radians(time) * 32;
-    
-   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
+    // auto time = glfwGetTime();
+    // model_transformation.rotation.y = glm::radians(time) * 32;
     
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::Begin("Scene");
-    if (ImGui::CollapsingHeader("Proprietà Camera", ImGuiTreeNodeFlags_DefaultOpen)) 
-    {
-      auto fov = glm::degrees(camera.fovy);
-      if (ImGui::DragFloat("Vertical FOV", &fov, 0.5f, 30.0f, 120.0f))
-        camera.fovy = glm::radians(fov);
-  
-			auto euler_angles = glm::degrees(camera.get_euler_angles());
-			ImGui::Text("Camera Position: X:%.2f, Y:%.2f, Z:%.2f", camera.eye.x, camera.eye.y, camera.eye.z);
-  		ImGui::BulletText("P: %.2f°  Y: %.2f°  R: %.2f°", euler_angles.x, euler_angles.y, euler_angles.z);
-      
-      if (ImGui::Button("Reset Camera")) 
-      {
-        camera.eye = glm::vec3(0.0f, 0.0f, 5.0f);
-        camera.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-        camera.fovy = glm::radians(45.0f);
-      }
-    }    
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-    if (ImGui::CollapsingHeader("Model", ImGuiTreeNodeFlags_DefaultOpen)) 
-    {
-      ImGui::DragFloat3("Position", &model_transformation.position[0], 0.1f);
-      ImGui::DragFloat3("Rotation", &model_transformation.rotation[0], 1.0f);
-      ImGui::DragFloat3("Scale", &model_transformation.scale[0], 0.05f, 0.1f, 10.0f);
-      if (ImGui::Button("Reset"))
-      {
-        model_transformation.position = glm::vec3(0.0f);
-        model_transformation.rotation = glm::vec3(0.0f);
-        model_transformation.scale = glm::vec3(1.0f);
-      }
-    }
-    ImGui::End();
     
-    auto mat_transform = model_transformation.calculate_tranformation();
-    camera.aspect = aspect_ratio;
-    auto mat_camera = camera.canonical_to_camera();
-    auto mat_persp = camera.get_perspective();
- 
+    gui_camera_window(camera);
+    gui_hierarchy_window(root_node);
+    draw_inspector();
+    
+    auto mat_transform = car_node_1->world_transform();
     pipeline_object.bind();
     pipeline_object.set_active_program(program_vertex_object);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), &mat_transform[0][0]);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), & mat_transform[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
     pipeline_object.set_active_program(program_fragment_object);
     program_fragment_object.set_uniform_vector3f(program_fragment_object.get_uniform_location("u_camera_eye"), &camera.eye[0]); 
     texture_color.bind_texture_unit(0);
-    // texture_normal.bind_texture_unit(1);
     
-    car_model.vao().bind();
-    glDrawElements(GL_TRIANGLES, car_model.nr_indices(), GL_UNSIGNED_INT, 0);
-    // glDrawArrays(GL_TRIANGLES, 0, cube_mesh.nr_vertices());
+    car_node_1->mesh()->vao().bind();
+    glDrawElements(GL_TRIANGLES, car_node_1->mesh()->nr_indices(), GL_UNSIGNED_INT, 0);
+    
+    mat_transform = car_node_2->world_transform();
+    pipeline_object.bind();
+    pipeline_object.set_active_program(program_vertex_object);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), & mat_transform[0][0]);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
+    pipeline_object.set_active_program(program_fragment_object);
+    program_fragment_object.set_uniform_vector3f(program_fragment_object.get_uniform_location("u_camera_eye"), &camera.eye[0]); 
+    texture_color.bind_texture_unit(0);
+    car_node_2->mesh()->vao().bind();
+    glDrawElements(GL_TRIANGLES, car_node_2->mesh()->nr_indices(), GL_UNSIGNED_INT, 0);
+    
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

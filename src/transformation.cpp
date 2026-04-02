@@ -2,15 +2,15 @@
 
 #include <glm/trigonometric.hpp>
 
-glm::mat4 Transformation::calculate_tranformation() const
+void Transformation::update_tranformation()
 {
- // The explicit form of the affine tranfsormation:
- //
- //  	M = | u  v  w  e |
- //	
- // Where:
- // 	- the vectors `(u,v,w)` represent the orthonormal basis of the local coordinate system
- // 	- the point `e` represents the translation in world space.
+ 	// The explicit form of the affine tranfsormation:
+ 	//
+ 	//  	M = | u  v  w  e |
+ 	//	
+ 	// Where:
+ 	// 	- the vectors `(u,v,w)` represent the orthonormal basis of the local coordinate system
+ 	// 	- the point `e` represents the translation in world space.
 	
   auto S = glm::mat3 {
    	scale.x, 0.0f, 0.0f, 
@@ -43,12 +43,10 @@ glm::mat4 Transformation::calculate_tranformation() const
   
   auto R = R_z * R_y * R_x;
   auto RS = R * S;
-  auto M = glm::mat4 {
+  M = glm::mat4 {
     glm::vec4(RS[0], 0.0f),
     glm::vec4(RS[1], 0.0f),
     glm::vec4(RS[2], 0.0f),
     glm::vec4(position, 1.0f)    
   }; 
-  
-  return M;
 }
