@@ -29,25 +29,23 @@ void SceneNode::set_transform(const Transformation& local_transf)
 	mark_dirty();
 }
 
-void SceneNode::update_world_transform()
+void SceneNode::update_world()
 {
-	if(!m_dirty)
-		return;
+	if (m_dirty) 
+	{
+    m_local_transformation.update_tranformation();
+    m_dirty = false;
+  }
 	
-	m_local_transformation.update_tranformation();
 	if(m_parent)
 		m_world_matrix = m_parent->m_world_matrix * m_local_transformation.M;
 	
-	m_dirty = false;
-	
 	for(auto child : this->m_children)
-		child->update_world_transform();
+		child->update_world();
 }
 
 void SceneNode::mark_dirty()
 {
-	if (m_dirty) 
-		return;
 
 	m_dirty = true;
   for (auto child : m_children)

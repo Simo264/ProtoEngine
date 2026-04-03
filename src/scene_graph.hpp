@@ -64,30 +64,22 @@
 // delegates to `parent->add_child(child)` (or vice-versa) to keep relationships
 // consistent.
 //
+// ============================================================
+// 
 // Example usage of Scene + SceneNode:
-// 
+//
 // auto scene = Scene{};
+// scene.set_root(scene.create_node("World"));
 // 
-// // Create the nodes
-// auto root = scene.create_node("Root");
-// auto car  = scene.create_node("Car");
-// auto wheel = scene.create_node("Wheel");
-//
-// // Let's define the hierarchy
-// root->add_child(car);
-// car->add_child(wheel);
-// 
-// // Let's define the node's local transformation 
-// car->set_transform(Transformation{ .position = { 0.0f, 0.0f, 0.0f }, .scale={ 0.05f,0.05f,0.05f } );
-//
-// Update trasformazioni (una volta per frame)
-// scene.update();
-//
-// auto mat_transform = car->world_matrix();
-//
-// // Rendering
-// if (car->mesh()) 
-//  car->mesh()->draw(world);
+// auto root_node = scene.root();
+// auto car_node_1 = scene.create_node("Car_1");
+// auto car_node_2 = scene.create_node("Car_2");
+// root_node->add_child(car_node_1);
+// car_node_1->add_child(car_node_2);
+// car_node_1->set_transform(Transformation{ .position = { 0.0f, 0.0f, 0.0f }, .scale={ 0.05f,0.05f,0.05f } });
+// car_node_2->set_transform(Transformation{ .position = { 0.0f, 0.0f, 100.0f } });
+// car_node_1->set_mesh(car_mesh.get());
+// car_node_2->set_mesh(car_mesh.get());
 // 
 // Note:
 // - The Scene class owns all nodes (unique_ptr)

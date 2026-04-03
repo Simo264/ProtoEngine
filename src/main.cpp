@@ -388,6 +388,25 @@ static void gui_hierarchy_window(SceneNode* root)
   ImGui::End();
 }
 
+static void render_scene(SceneNode* node)
+{
+	if(!node)
+		return;
+	
+	if(node->mesh())
+	{
+		pipeline_object.bind();
+		pipeline_object.set_active_program(program_vertex_object);
+		auto& mat_transform = node->world_matrix();
+		program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), &mat_transform[0][0]);
+		node->mesh()->vao().bind();
+		glDrawElements(GL_TRIANGLES, node->mesh()->nr_indices(), GL_UNSIGNED_INT, 0);
+	}
+	
+	for (auto child : node->children())
+    render_scene(child);
+}
+
 int main() 
 { 
 	auto window = init_context();
@@ -400,7 +419,9 @@ int main()
   auto car_mesh = import_model(std::filesystem::current_path() / "res/models/car.glb");
 
   auto scene = Scene{};
-  auto root_node = scene.create_node("World");
+  scene.set_root(scene.create_node("World"));
+  
+  auto root_node = scene.root();
   auto car_node_1 = scene.create_node("Car_1");
   auto car_node_2 = scene.create_node("Car_2");
   root_node->add_child(car_node_1);
@@ -427,8 +448,10 @@ int main()
     auto mat_camera = camera.canonical_to_camera();
     auto mat_persp = camera.get_perspective();
 
-    // auto time = glfwGetTime();
-    // model_transformation.rotation.y = glm::radians(time) * 32;
+    auto time = glfwGetTime();
+    auto t = car_node_1->local_transform();
+    t.rotation.y = glm::radians(time) * 32;
+    car_node_1->set_transform(t);
 
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -439,30 +462,15 @@ int main()
     gui_hierarchy_window(root_node);
     draw_inspector();
 
-    auto mat_transform = car_node_1->world_matrix();
     pipeline_object.bind();
     pipeline_object.set_active_program(program_vertex_object);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), &mat_transform[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
     pipeline_object.set_active_program(program_fragment_object);
     program_fragment_object.set_uniform_vector3f(program_fragment_object.get_uniform_location("u_camera_eye"), &camera.eye[0]); 
-    texture_color.bind_texture_unit(0);
-
-    car_node_1->mesh()->vao().bind();
-    glDrawElements(GL_TRIANGLES, car_node_1->mesh()->nr_indices(), GL_UNSIGNED_INT, 0);
     
-    mat_transform = car_node_2->world_matrix();
-    pipeline_object.bind();
-    pipeline_object.set_active_program(program_vertex_object);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), & mat_transform[0][0]);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
-    pipeline_object.set_active_program(program_fragment_object);
-    program_fragment_object.set_uniform_vector3f(program_fragment_object.get_uniform_location("u_camera_eye"), &camera.eye[0]); 
     texture_color.bind_texture_unit(0);
-    car_node_2->mesh()->vao().bind();
-    glDrawElements(GL_TRIANGLES, car_node_2->mesh()->nr_indices(), GL_UNSIGNED_INT, 0);
+    render_scene(scene.root());
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
