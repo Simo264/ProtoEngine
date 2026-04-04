@@ -56,7 +56,7 @@ void gui_hierarchy_window(SceneNode* node)
 	ImGui::End();
 }
 
-static void draw_inspector() 
+void draw_inspector() 
 {
   ImGui::Begin("Inspector");
   if (selected_node) 
