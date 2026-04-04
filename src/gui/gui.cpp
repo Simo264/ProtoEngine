@@ -2,6 +2,9 @@
 
 #include "camera.hpp"
 #include "scene_graph.hpp"
+#include "transformation.hpp"
+
+#include <print>
 
 #include <glm/vec3.hpp>
 #include <glm/trigonometric.hpp>
@@ -36,7 +39,7 @@ static void draw_scene_node(SceneNode* node)
   if (node == selected_node)
     flags |= ImGuiTreeNodeFlags_Selected;
 
-  bool open = ImGui::TreeNodeEx( (void*)node,flags, "%s", node->name.data());
+  bool open = ImGui::TreeNodeEx( (void*)node, flags, "%s", node->name.data());
   if (ImGui::IsItemClicked())
     selected_node = node;
 
@@ -51,12 +54,18 @@ static void draw_scene_node(SceneNode* node)
 
 void gui_hierarchy_window(SceneNode* node)
 {
+  if(!node)
+  {
+    std::println("Invalid scene node!");
+    return;
+  }
+  
 	ImGui::Begin("Scene graph");
-	draw_scene_node(node);
+  draw_scene_node(node);
 	ImGui::End();
 }
 
-void draw_inspector() 
+void gui_draw_inspector() 
 {
   ImGui::Begin("Inspector");
   if (selected_node) 
@@ -67,9 +76,7 @@ void draw_inspector()
     changed |= ImGui::DragFloat3("Rotation", &t.rotation.x, 0.5f);
     changed |= ImGui::DragFloat3("Scale", &t.scale.x, 0.1f);
     if (changed) 
-    {
    		selected_node->set_transform(t);
-    }
   }
 
   ImGui::End();

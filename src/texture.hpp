@@ -1,6 +1,7 @@
 #pragma once
 
 #include "basic_types.hpp"
+#include <filesystem>
 
 enum class TextureType : u32
 {
@@ -97,6 +98,28 @@ class Texture
 {
 public:
   Texture() : m_id{ 0 } {}
+  
+  static Texture create_from_file(const std::filesystem::path& path, 
+                                  TextureImageFormat image_format = TextureImageFormat::RGBA8,
+                                  PixelDataFormat pixel_format = PixelDataFormat::RGBA,
+                                  PixelDataType pixel_type = PixelDataType::UnsignedByte,
+                                  i32 desired_channels = 4,
+                                  TextureWrapMode wrap_s = TextureWrapMode::Repeat,
+                                  TextureWrapMode wrap_t = TextureWrapMode::Repeat,
+                                  TextureFilteringMode mag_filter = TextureFilteringMode::Linear,
+                                  TextureFilteringMode min_filter = TextureFilteringMode::LinearMipmapLinear);
+  
+  static Texture create_from_memory(const void* buffer,
+                                    i32 length,
+                                    TextureImageFormat image_format = TextureImageFormat::RGBA8,
+                                    PixelDataFormat pixel_format = PixelDataFormat::RGBA,
+                                    PixelDataType pixel_type = PixelDataType::UnsignedByte,
+                                    i32 desired_channels = 4,
+                                    TextureWrapMode wrap_s = TextureWrapMode::Repeat,
+                                    TextureWrapMode wrap_t = TextureWrapMode::Repeat,
+                                    TextureFilteringMode mag_filter = TextureFilteringMode::Linear,
+                                    TextureFilteringMode min_filter = TextureFilteringMode::LinearMipmapLinear);
+  
   
   // create texture object
   void create(TextureType type);

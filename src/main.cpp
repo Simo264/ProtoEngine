@@ -36,8 +36,7 @@
 
 static constexpr auto WINDOW_W = 640;
 static constexpr auto WINDOW_H = 480;
-static auto aspect_ratio =
-    static_cast<f32>(WINDOW_W) / static_cast<f32>(WINDOW_H);
+static auto aspect_ratio = static_cast<f32>(WINDOW_W) / static_cast<f32>(WINDOW_H);
 
 static auto program_vertex_object = ShaderProgram{};
 static auto program_fragment_object = ShaderProgram{};
@@ -46,35 +45,31 @@ static auto pipeline_object = ProgramPipelineObject{};
 static auto texture_color = Texture{};
 static auto texture_normal = Texture{};
 
-static auto init_context() {
+static auto init_context() 
+{
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_DEPTH_BITS, 24);
-  auto window =
-      glfwCreateWindow(WINDOW_W, WINDOW_H, "Proto engine", nullptr, nullptr);
+  auto window = glfwCreateWindow(WINDOW_W, WINDOW_H, "Proto engine", nullptr, nullptr);
   glfwMakeContextCurrent(window);
   gladLoadGL(glfwGetProcAddress);
-  glfwSetFramebufferSizeCallback(
-      window, []([[maybe_unused]] GLFWwindow *window, int width, int height) {
-        glViewport(0, 0, width, height);
-        aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
-      });
+  glfwSetFramebufferSizeCallback(window, []([[maybe_unused]] GLFWwindow *window, int width, int height) {
+      glViewport(0, 0, width, height);
+      aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
+  });
   glViewport(0, 0, WINDOW_W, WINDOW_H);
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   auto &io = ImGui::GetIO();
-  (void)io;
-  io.ConfigFlags |=
-      ImGuiConfigFlags_NavEnableKeyboard;           // Enable Keyboard Controls
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;           // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
   ImGui::StyleColorsDark();
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 460");
-
   return window;
 }
 
@@ -144,66 +139,23 @@ static void handle_camera_input(auto window, auto &camera)
   if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) camera.eye -= camera.up() * 0.1f;
 }
 
-#if 0
-static Texture create_texture_color_from_file(const std::filesystem::path& filepath)
-{
- 	if(!std::filesystem::exists(filepath))
-    exit(1);
-
-  auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
-  auto data = stbi_load(filepath.string().c_str(), &width, &height, &nr_channels, STBI_rgb);
-  auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);  // levels = floor(log_2(max(width, height))) + 1
-
-	auto texture = Texture{};
- 	texture.create(TextureType::Texture2D);
-  texture.set_storage_tex2D(levels, TextureImageFormat::RGB8, width, height);
-  texture.update_content_tex2D(0, 0, 0, width, height, PixelDataFormat::RGB, PixelDataType::UnsignedByte, data);
-  stbi_image_free(data);
-
-  texture.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
-  texture.set_magnification_filter(TextureFilteringMode::Linear);
-  texture.set_minification_filter(TextureFilteringMode::LinearMipmapLinear);
-  texture.generate_mipmaps();
-  return texture;
-}
-
-static Texture create_texture_normal_from_file(const std::filesystem::path& filepath)
-{
-  if(!std::filesystem::exists(filepath))
-    exit(1);
-
-  auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
-  auto data = stbi_load(filepath.string().c_str(), &width, &height, &nr_channels, STBI_rgb);
-  auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);  // levels = floor(log_2(max(width, height))) + 1
-
-  auto texture = Texture{};
-  texture.create(TextureType::Texture2D);
-  texture.set_storage_tex2D(levels, TextureImageFormat::RGB8, width, height);
-  texture.update_content_tex2D(0, 0, 0, width, height, PixelDataFormat::RGB, PixelDataType::UnsignedByte, data);
-  stbi_image_free(data);
-
-  texture.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
-  texture.set_magnification_filter(TextureFilteringMode::Linear);
-  texture.set_minification_filter(TextureFilteringMode::LinearMipmapLinear);
-  texture.generate_mipmaps();
-  return texture;
-}
-#endif
-
 static auto import_model(const std::filesystem::path& filepath)
 {
   std::println("=========================");
   std::println("Importing model: {}", filepath.string());
-  std::println("=========================");
-	if(!std::filesystem::exists(filepath))
-    exit(1);
+	if(!std::filesystem::exists(filepath) || !std::filesystem::is_regular_file(filepath))
+	{
+		std::println("File does not exist or is not a regular file: {}", filepath.string());
+		exit(1);
+	}
 
   // Create an instance of the Importer class
   auto importer = Assimp::Importer{};
-  const auto scene = importer.ReadFile(
-      filepath.string().c_str(), aiProcess_CalcTangentSpace |
-                                     aiProcess_Triangulate | aiProcess_FlipUVs |
-                                     aiProcess_JoinIdenticalVertices);
+  const auto scene = importer.ReadFile(filepath.string().c_str(), 
+    aiProcess_CalcTangentSpace |
+    aiProcess_Triangulate | 
+    aiProcess_FlipUVs |
+    aiProcess_JoinIdenticalVertices);
 
   // If the import failed, report it
   if (scene == nullptr) 
@@ -244,72 +196,63 @@ static auto import_model(const std::filesystem::path& filepath)
     indices.emplace_back(face.mIndices[2]);
   }
 
+  if(!scene->HasMaterials())
+    std::println("No materials in this scene!");
+  
   auto material = scene->mMaterials[aimesh->mMaterialIndex];
-  std::println("unknown textures: {}", material->GetTextureCount(aiTextureType_UNKNOWN));
-  std::println("diffuse textures: {}", material->GetTextureCount(aiTextureType_DIFFUSE));
-  std::println("normal textures: {}", material->GetTextureCount(aiTextureType_NORMALS));
+  std::println("Material name: {}", material->GetName().C_Str());
+  std::println("Base color texture count: {}", material->GetTextureCount(aiTextureType_BASE_COLOR));
+  std::println("Diffuse texture count: {}", material->GetTextureCount(aiTextureType_DIFFUSE));
+  std::println("Normal texture count: {}", material->GetTextureCount(aiTextureType_NORMALS));
+  std::println("Height texture count: {}", material->GetTextureCount(aiTextureType_HEIGHT));
+  
+  auto base_color = aiColor4D(1.0f, 1.0f, 1.0f, 1.0f);
+  if (material->Get(AI_MATKEY_BASE_COLOR, base_color) == AI_SUCCESS || 
+      material->Get(AI_MATKEY_COLOR_DIFFUSE, base_color) == AI_SUCCESS)
+    std::println("Material base color: r={}, g={}, b={}, a={}", base_color.r, base_color.g, base_color.b, base_color.a);
   
   auto path = aiString{};
-  if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) 
+  if (material->GetTexture(aiTextureType_BASE_COLOR, 0, &path) == AI_SUCCESS || 
+      material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
   {
-    auto ai_texture = scene->GetEmbeddedTexture(path.C_Str());
-    std::println("Texture color found: width={}, height={}", ai_texture->mWidth, ai_texture->mHeight);
-
-    auto width{0}, height{0}, nr_channels{0};
-    auto data = stbi_load_from_memory(
-      reinterpret_cast<unsigned char*>(ai_texture->pcData), 
-      ai_texture->mWidth, 
-      &width,&height, 
-      &nr_channels, 
-      STBI_rgb);
-   
-    if (!data) 
+    auto embedded_tex = scene->GetEmbeddedTexture(path.C_Str());
+    if (embedded_tex)
     {
-  		std::println("Error on loading embedded texture");
-      exit(1);
+      std::println("Embedded texture base color/diffuse: {}", path.C_Str());
+      
+      if(!texture_color.is_valid())
+      {
+        texture_color = Texture::create_from_memory(
+          embedded_tex->pcData,
+          embedded_tex->mWidth,
+          TextureImageFormat::RGB8,
+          PixelDataFormat::RGB,
+          PixelDataType::UnsignedByte,
+          STBI_rgb);
+      }
     }
-    
-    auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);
-   	texture_color.create(TextureType::Texture2D);
-    texture_color.set_storage_tex2D(levels, TextureImageFormat::RGB8, width, height);
-    texture_color.update_content_tex2D(0, 0, 0, width, height, PixelDataFormat::RGB, PixelDataType::UnsignedByte, data);
-    
-    texture_color.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
-    texture_color.set_magnification_filter(TextureFilteringMode::Linear);
-    texture_color.set_minification_filter(TextureFilteringMode::LinearMipmapLinear);
-    texture_color.generate_mipmaps();
-    stbi_image_free(data);
-  }  
-  if(material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS)
-  {
-  	auto ai_texture = scene->GetEmbeddedTexture(path.C_Str());
- 		std::println("Texture normal found: width={}, height={}", ai_texture->mWidth, ai_texture->mHeight);
+    else 
+    {
+      std::println("External texture base color/diffuse: {}", path.C_Str());
+      if(!texture_color.is_valid())
+      {
+        texture_color = Texture::create_from_file(
+          std::filesystem::current_path() / "res/models/kenny_mini_dungeon/colormap.png", 
+          TextureImageFormat::RGB8, 
+          PixelDataFormat::RGB,
+          PixelDataType::UnsignedByte,
+          STBI_rgb);
+      }
+    }
   }
-  if (material->GetTexture(aiTextureType_UNKNOWN, 0, &path) == AI_SUCCESS) 
+  
+  if (material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS)
   {
-    std::println("Unkown texture found");
+    std::println("Material normal map: {}", path.C_Str());
   }
 
+  std::println("=========================");
   return std::shared_ptr<StaticMesh>(new StaticMesh(vertices.data(), vertices.size(), indices.data(), indices.size()));
-}
-
-static void render_scene(SceneNode* node)
-{
-	if(!node)
-		return;
-	
-	if(node->mesh())
-	{
-		pipeline_object.bind();
-		pipeline_object.set_active_program(program_vertex_object);
-		auto& mat_transform = node->world_matrix();
-		program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_transform"), &mat_transform[0][0]);
-		node->mesh()->vao().bind();
-		glDrawElements(GL_TRIANGLES, node->mesh()->nr_indices(), GL_UNSIGNED_INT, 0);
-	}
-	
-	for (auto child : node->children())
-    render_scene(child);
 }
 
 int main() 
@@ -321,15 +264,20 @@ int main()
  	auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
 
   // let's define the scene graph hierarchy
-  auto mesh = import_model(std::filesystem::current_path() / "res/models/.glb");
+  auto mesh_banner = import_model(std::filesystem::current_path() / "res/models/kenny_mini_dungeon/banner.glb");
   auto scene = Scene{};
-  scene.set_root(scene.create_node("World"));
+  auto node_world = scene.create_node("World");
+  auto banner_node = scene.create_node("banner");
+  scene.set_root(node_world);
+  node_world->add_child(banner_node);
+  banner_node->set_mesh(mesh_banner.get());
   
   glEnable(GL_DEPTH_TEST);  	// enable depth testing
   glDepthFunc(GL_LESS);    	// specify the value used for depth buffer comparisons
   glDepthMask(GL_TRUE);    	// enable/disable writing into the depth buffer
   glClearDepthf(1.0f);       	// specify the clear value for the depth buffer
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f); // specify the clear value for the color buffer
+  texture_color.bind_texture_unit(0);
 
   while (!glfwWindowShouldClose(window)) 
   {
@@ -357,21 +305,20 @@ int main()
     gui_draw_inspector();
     
     pipeline_object.bind();
-    pipeline_object.set_active_program(program_vertex_object);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
     pipeline_object.set_active_program(program_fragment_object);
     program_fragment_object.set_uniform_vector3f(program_fragment_object.get_uniform_location("u_camera_eye"), &camera.eye[0]); 
     
-    texture_color.bind_texture_unit(0);
-    render_scene(scene.root());
+    pipeline_object.set_active_program(program_vertex_object);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
+    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
+    scene.render(program_vertex_object);
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    auto &io = ImGui::GetIO();
+    auto& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) 
     {
-      GLFWwindow *backup_current_context = glfwGetCurrentContext();
+      auto backup_current_context = glfwGetCurrentContext();
       ImGui::UpdatePlatformWindows();
       ImGui::RenderPlatformWindowsDefault();
       glfwMakeContextCurrent(backup_current_context);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "pipeline.hpp"
 #include "static_mesh.hpp"
 #include "transformation.hpp"
 
@@ -136,6 +137,7 @@ public:
 	void set_root(SceneNode* root) { m_root = root; }
 	
 	void update(){ if(m_root) m_root->update_world(); }
+	void render(class ShaderProgram program_vertex) const;
 	
 private:
 	std::vector<std::unique_ptr<SceneNode>> m_nodes;

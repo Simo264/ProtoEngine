@@ -2,6 +2,89 @@
 
 #include <glad/gl.h>
 #include <print>
+#include <cmath>
+
+#include <stb_image.h>
+
+Texture Texture::create_from_file(const std::filesystem::path& path, 
+                                  TextureImageFormat image_format,
+                                  PixelDataFormat pixel_format,
+                                  PixelDataType pixel_type,
+                                  i32 desired_channels,
+                                  TextureWrapMode wrap_s,
+                                  TextureWrapMode wrap_t,
+                                  TextureFilteringMode mag_filter,
+                                  TextureFilteringMode min_filter)
+{
+ 	if(!std::filesystem::exists(path) || !std::filesystem::is_regular_file(path))
+  {
+    std::println("File not found or not a regular file: {}", path.string());
+    exit(1);
+  }
+  
+  auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
+  auto data = stbi_load(path.string().c_str(), &width, &height, &nr_channels, desired_channels);
+  auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);
+
+ 	auto texture = Texture{};
+  texture.create(TextureType::Texture2D);
+  texture.set_storage_tex2D(levels, image_format, width, height);
+  texture.update_content_tex2D(0, 0, 0, width, height, pixel_format, pixel_type, data);
+  stbi_image_free(data);
+  texture.set_wrap_mode(wrap_s, wrap_t);
+  texture.set_magnification_filter(mag_filter);
+  texture.set_minification_filter(min_filter);
+  texture.generate_mipmaps();
+  return texture;
+}
+
+
+Texture Texture::create_from_memory(const void* buffer, 
+                                    i32 length,
+                                    TextureImageFormat image_format,
+                                    PixelDataFormat pixel_format,
+                                    PixelDataType pixel_type,
+                                    i32 desired_channels,
+                                    TextureWrapMode wrap_s,
+                                    TextureWrapMode wrap_t,
+                                    TextureFilteringMode mag_filter,
+                                    TextureFilteringMode min_filter)
+{
+  if(!buffer)
+  {
+    std::println("Invalid texture buffer data!");
+    exit(1);
+  }
+  
+  auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
+  auto data = stbi_load_from_memory(
+    reinterpret_cast<const uchar*>(buffer), 
+    length, 
+    &width, 
+    &height, 
+    &nr_channels, 
+    desired_channels);
+  
+  if (!data) 
+  {
+    std::println("Error on loading texture data from memory");
+    exit(1);
+  }
+  
+  auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);
+ 	auto texture = Texture{};
+  texture.create(TextureType::Texture2D);
+  texture.set_storage_tex2D(levels, image_format, width, height);
+  texture.update_content_tex2D(0, 0, 0, width, height, pixel_format, pixel_type, data);
+  stbi_image_free(data);
+  texture.set_wrap_mode(wrap_s, wrap_t);
+  texture.set_magnification_filter(mag_filter);
+  texture.set_minification_filter(min_filter);
+  texture.generate_mipmaps();
+  return texture;
+}
+
+// =============================
 
 bool Texture::is_valid() const
 {

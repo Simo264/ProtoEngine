@@ -1,7 +1,10 @@
 #include "scene_graph.hpp"
 #include "transformation.hpp"
+#include "pipeline.hpp"
 
+#include <glad/gl.h>
 #include <string_view>
+#include <stack>
 
 // ===============================================
 // 		SceneNode
@@ -60,4 +63,36 @@ SceneNode* Scene::create_node(std::string_view name)
 {
 	m_nodes.emplace_back(std::make_unique<SceneNode>(name));
 	return m_nodes.back().get();
+}
+
+void Scene::render(ShaderProgram program_vertex) const
+{
+ if(!m_root)
+   return;
+ 
+  auto node_stack = std::stack<SceneNode*>{};
+  node_stack.push(m_root);
+  
+  auto loc = program_vertex.get_uniform_location("mat_transform");
+  while (!node_stack.empty())
+  {
+    auto current = node_stack.top();
+    node_stack.pop();
+    
+    if (current->mesh()) 
+    {
+      auto& mat_transform = current->world_matrix();
+      program_vertex.set_uniform_mat4f(loc, &mat_transform[0][0]);
+      
+      current->mesh()->vao().bind();
+      glDrawElements(GL_TRIANGLES, current->mesh()->nr_indices(), GL_UNSIGNED_INT, 0);
+    }
+    
+    auto& children = current->children();
+    for (auto it = children.rbegin(); it != children.rend(); ++it) 
+    {
+      if (*it)
+        node_stack.push(*it);
+    }
+  }
 }
