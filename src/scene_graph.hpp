@@ -80,7 +80,13 @@
 // car_node_2->set_transform(Transformation{ .position = { 0.0f, 0.0f, 100.0f } });
 // car_node_1->set_mesh(car_mesh.get());
 // car_node_2->set_mesh(car_mesh.get());
-// 
+//
+// while(...)
+// {
+// 	scene.update();
+// 	render_scene(root);
+// }
+//  
 // Note:
 // - The Scene class owns all nodes (unique_ptr)
 // - The SceneNode class contains only references to them (raw pointer)
