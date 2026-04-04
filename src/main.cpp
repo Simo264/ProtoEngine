@@ -4,22 +4,25 @@
 #include <memory>
 #include <print>
 
-#include "assimp/material.h"
-#include "assimp/types.h"
 #include "basic_types.hpp"
-#include "camera.hpp"
 #include "pipeline.hpp"
+#include "static_mesh.hpp"
+#include "camera.hpp"
+#include "texture.hpp"
+#include "vertex.hpp"
 #include "scene_graph.hpp"
 #include "static_mesh.hpp"
 #include "texture.hpp"
 
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
+#include "gui/gui.hpp"
+
 #include <glm/mat2x3.hpp>
 #include <glm/mat4x4.hpp>
-#include <glm/trigonometric.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <glm/trigonometric.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include <stb_image.h>
 
@@ -27,9 +30,9 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#include <assimp/Importer.hpp>  // C++ importer interface
-#include <assimp/postprocess.h> // Post processing flags
-#include <assimp/scene.h>       // Output data structure
+#include <assimp/Importer.hpp>      // C++ importer interface
+#include <assimp/scene.h>           // Output data structure
+#include <assimp/postprocess.h>     // Post processing flags
 
 static constexpr auto WINDOW_W = 640;
 static constexpr auto WINDOW_H = 480;
@@ -201,8 +204,12 @@ static Texture create_texture_normal_from_file(const std::filesystem::path& file
 }
 #endif
 
-static auto import_model(const std::filesystem::path &filepath) {
-  if (!std::filesystem::exists(filepath))
+static auto import_model(const std::filesystem::path& filepath)
+{
+  std::println("=========================");
+  std::println("Importing model: {}", filepath.string());
+  std::println("=========================");
+	if(!std::filesystem::exists(filepath))
     exit(1);
 
   // Create an instance of the Importer class
@@ -222,7 +229,9 @@ static auto import_model(const std::filesystem::path &filepath) {
   // Now we can access the file's contents.
   std::println("num meshes: {}", scene->mNumMeshes);
   auto aimesh = scene->mMeshes[0];
-
+  
+  std::println("num vertices: {}", aimesh->mNumVertices);
+  
   // load vertices
   auto vertices = std::vector<Vertex>{};
   vertices.reserve(aimesh->mNumVertices);
@@ -255,13 +264,10 @@ static auto import_model(const std::filesystem::path &filepath) {
   }
 
   auto material = scene->mMaterials[aimesh->mMaterialIndex];
-  std::println("num unkknow texturess: {}",
-               material->GetTextureCount(aiTextureType_UNKNOWN));
-  std::println("num diffuse textures: {}",
-               material->GetTextureCount(aiTextureType_DIFFUSE));
-  std::println("num normal textures: {}",
-               material->GetTextureCount(aiTextureType_NORMALS));
-
+  std::println("unknown textures: {}", material->GetTextureCount(aiTextureType_UNKNOWN));
+  std::println("diffuse textures: {}", material->GetTextureCount(aiTextureType_DIFFUSE));
+  std::println("normal textures: {}", material->GetTextureCount(aiTextureType_NORMALS));
+  
   auto path = aiString{};
   if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
     auto ai_texture = scene->GetEmbeddedTexture(path.C_Str());
@@ -270,31 +276,37 @@ static auto import_model(const std::filesystem::path &filepath) {
 
     auto width{0}, height{0}, nr_channels{0};
     auto data = stbi_load_from_memory(
-        reinterpret_cast<unsigned char *>(ai_texture->pcData),
-        ai_texture->mWidth, &width, &height, &nr_channels, STBI_rgb);
-
-    if (!data) {
-      std::println("Errore caricamento texture embedded");
+      reinterpret_cast<unsigned char*>(ai_texture->pcData), 
+      ai_texture->mWidth, 
+      &width,&height, 
+      &nr_channels, 
+      STBI_rgb);
+   
+    if (!data) 
+    {
+  		std::println("Error on loading embedded texture");
       exit(1);
     }
-
-    auto levels =
-        static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);
-
-    texture_color.create(TextureType::Texture2D);
-    texture_color.set_storage_tex2D(levels, TextureImageFormat::RGB8, width,
-                                    height);
-    texture_color.update_content_tex2D(0, 0, 0, width, height,
-                                       PixelDataFormat::RGB,
-                                       PixelDataType::UnsignedByte, data);
-
-    texture_color.set_wrap_mode(TextureWrapMode::Repeat,
-                                TextureWrapMode::Repeat);
+    
+    auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);
+   	texture_color.create(TextureType::Texture2D);
+    texture_color.set_storage_tex2D(levels, TextureImageFormat::RGB8, width, height);
+    texture_color.update_content_tex2D(0, 0, 0, width, height, PixelDataFormat::RGB, PixelDataType::UnsignedByte, data);
+    
+    texture_color.set_wrap_mode(TextureWrapMode::Repeat, TextureWrapMode::Repeat);
     texture_color.set_magnification_filter(TextureFilteringMode::Linear);
     texture_color.set_minification_filter(
         TextureFilteringMode::LinearMipmapLinear);
     texture_color.generate_mipmaps();
     stbi_image_free(data);
+<<<<<<< HEAD
+=======
+  }  
+  if(material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS)
+  {
+  	auto ai_texture = scene->GetEmbeddedTexture(path.C_Str());
+ 		std::println("Texture normal found: width={}, height={}", ai_texture->mWidth, ai_texture->mHeight);
+>>>>>>> 40a41fe (commit)
   }
   if (material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
     std::println("Texture normal found");
@@ -308,6 +320,7 @@ static auto import_model(const std::filesystem::path &filepath) {
       vertices.data(), vertices.size(), indices.data(), indices.size()));
 }
 
+<<<<<<< HEAD
 static void gui_camera_window(auto &camera) {
   ImGui::Begin("Camera");
   auto fov = glm::degrees(camera.fovy);
@@ -407,6 +420,8 @@ static void render_scene(SceneNode* node)
     render_scene(child);
 }
 
+=======
+>>>>>>> 40a41fe (commit)
 int main() 
 { 
 	auto window = init_context();
@@ -416,6 +431,7 @@ int main()
  	auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
 
   // let's define the scene graph hierarchy
+<<<<<<< HEAD
   auto car_mesh = import_model(std::filesystem::current_path() / "res/models/car.glb");
 
   auto scene = Scene{};
@@ -430,6 +446,10 @@ int main()
   car_node_2->set_transform(Transformation{ .position = { 0.0f, 0.0f, 100.0f } });
   car_node_1->set_mesh(car_mesh.get());
   car_node_2->set_mesh(car_mesh.get());
+=======
+  auto mesh = import_model(std::filesystem::current_path() / "res/models/.glb");
+  auto root_node = std::make_shared<SceneNode>("World");
+>>>>>>> 40a41fe (commit)
   
   glEnable(GL_DEPTH_TEST);  	// enable depth testing
   glDepthFunc(GL_LESS);    	// specify the value used for depth buffer comparisons
@@ -460,8 +480,9 @@ int main()
 
     gui_camera_window(camera);
     gui_hierarchy_window(root_node);
-    draw_inspector();
-
+    gui_draw_inspector();
+    
+    auto mat_transform = car_node_1->world_transform();
     pipeline_object.bind();
     pipeline_object.set_active_program(program_vertex_object);
     program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
