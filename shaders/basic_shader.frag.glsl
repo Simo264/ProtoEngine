@@ -18,8 +18,6 @@ void main()
 {
 	// Sample the surface color from the texture
   vec3 surface_color = texture(u_texture_color, vs_out_texcoord).rgb;
-  fs_out_color = vec4(surface_color, 1.0);
-  return;
 
 #define NORMAL_MAP 0
 #if NORMAL_MAP 
@@ -102,7 +100,7 @@ void main()
   float specular = pow(max(0.0, dot(n, h)), p);
   
   // Ambient illumination: it prevents shadows from being completely black and allows an easy way to tweak overall scene contrast.
-  vec3 k_a = vec3(0.15); 
+  vec3 k_a = surface_color.rgb * vec3(0.15); 
   vec3 I_a = vec3(1.0);
   vec3 ambient = k_a * I_a;
   

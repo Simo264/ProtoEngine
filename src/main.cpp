@@ -9,6 +9,7 @@
 #include "static_mesh.hpp"
 #include "camera.hpp"
 #include "texture.hpp"
+#include "transformation.hpp"
 #include "vertex.hpp"
 #include "scene_graph.hpp"
 #include "static_mesh.hpp"
@@ -252,7 +253,11 @@ static auto import_model(const std::filesystem::path& filepath)
   }
 
   std::println("=========================");
-  return std::shared_ptr<StaticMesh>(new StaticMesh(vertices.data(), vertices.size(), indices.data(), indices.size()));
+  return std::unique_ptr<StaticMesh>(new StaticMesh(
+    vertices.data(), 
+    vertices.size(), 
+    indices.data(), 
+    indices.size()));
 }
 
 int main() 
@@ -264,13 +269,45 @@ int main()
  	auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
 
   // let's define the scene graph hierarchy
-  auto mesh_banner = import_model(std::filesystem::current_path() / "res/models/kenny_mini_dungeon/banner.glb");
+  auto meshes = std::vector<std::unique_ptr<StaticMesh>>{};
   auto scene = Scene{};
   auto node_world = scene.create_node("World");
-  auto banner_node = scene.create_node("banner");
   scene.set_root(node_world);
-  node_world->add_child(banner_node);
-  banner_node->set_mesh(mesh_banner.get());
+  for(const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path() / "res/models/kenny_mini_dungeon"))
+  {
+    auto filename = entry.path().filename();
+    auto extension = filename.extension();
+    if(extension == ".glb")
+    {
+      auto& mesh = meshes.emplace_back(import_model(entry.path()));
+      auto node = scene.create_node(filename.stem().string());
+      node_world->add_child(node);
+      node->set_mesh(mesh.get());
+      
+      // arrange on a centered grid so meshes don't overlap at the origin
+      constexpr auto spacing = 2.5f; // distance between objects
+      constexpr auto cols = 8;         // number of columns in the grid
+      constexpr auto base_y = 0.0f;  // shared Y coordinate for all meshes
+
+      auto idx = meshes.size() - 1; // index of the mesh we just pushed
+      auto col = static_cast<int>(idx % cols);
+      auto row = static_cast<int>(idx / cols);
+
+      // center columns around X = 0
+      auto x_offset = (static_cast<float>(col) - (static_cast<float>(cols - 1) / 2.0f)) * spacing;
+      auto z_offset = static_cast<float>(row) * spacing;
+
+      auto t = Transformation{};
+      t.position = glm::vec3{ x_offset, base_y, z_offset };
+      // leave rotation and scale as defaults for now
+      node->set_transform(t);
+    }
+  }
+  
+  // auto banner_node = scene.create_node("banner");
+  // scene.set_root(node_world);
+  // node_world->add_child(banner_node);
+  // banner_node->set_mesh(mesh_banner.get());
   
   glEnable(GL_DEPTH_TEST);  	// enable depth testing
   glDepthFunc(GL_LESS);    	// specify the value used for depth buffer comparisons
