@@ -271,8 +271,7 @@ int main()
   // let's define the scene graph hierarchy
   auto meshes = std::vector<std::unique_ptr<StaticMesh>>{};
   auto scene = Scene{};
-  auto node_world = scene.create_node("World");
-  scene.set_root(node_world);
+  scene.set_root(scene.create_node("World"));
   for(const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path() / "res/models/kenny_mini_dungeon"))
   {
     auto filename = entry.path().filename();
@@ -281,34 +280,24 @@ int main()
     {
       auto& mesh = meshes.emplace_back(import_model(entry.path()));
       auto node = scene.create_node(filename.stem().string());
-      node_world->add_child(node);
+      scene.root()->add_child(node);
       node->set_mesh(mesh.get());
       
       // arrange on a centered grid so meshes don't overlap at the origin
-      constexpr auto spacing = 2.5f; // distance between objects
-      constexpr auto cols = 8;         // number of columns in the grid
-      constexpr auto base_y = 0.0f;  // shared Y coordinate for all meshes
-
-      auto idx = meshes.size() - 1; // index of the mesh we just pushed
+      constexpr auto spacing = 2.5f;
+      constexpr auto cols = 8;
+      constexpr auto base_y = 0.0f;
+      auto idx = meshes.size() - 1;
       auto col = static_cast<int>(idx % cols);
       auto row = static_cast<int>(idx / cols);
-
-      // center columns around X = 0
       auto x_offset = (static_cast<float>(col) - (static_cast<float>(cols - 1) / 2.0f)) * spacing;
       auto z_offset = static_cast<float>(row) * spacing;
-
       auto t = Transformation{};
       t.position = glm::vec3{ x_offset, base_y, z_offset };
-      // leave rotation and scale as defaults for now
       node->set_transform(t);
     }
   }
-  
-  // auto banner_node = scene.create_node("banner");
-  // scene.set_root(node_world);
-  // node_world->add_child(banner_node);
-  // banner_node->set_mesh(mesh_banner.get());
-  
+
   glEnable(GL_DEPTH_TEST);  	// enable depth testing
   glDepthFunc(GL_LESS);    	// specify the value used for depth buffer comparisons
   glDepthMask(GL_TRUE);    	// enable/disable writing into the depth buffer
@@ -326,11 +315,6 @@ int main()
     camera.aspect = aspect_ratio;
     auto mat_camera = camera.canonical_to_camera();
     auto mat_persp = camera.get_perspective();
-
-    //auto time = glfwGetTime();
-    //auto t = car_node_1->local_transform();
-    //t.rotation.y = glm::radians(time) * 32;
-    //car_node_1->set_transform(t);
 
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();

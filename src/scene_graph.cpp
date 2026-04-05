@@ -42,14 +42,15 @@ void SceneNode::update_world()
 	
 	if(m_parent)
 		m_world_matrix = m_parent->m_world_matrix * m_local_transformation.M;
-	
+	else
+	  m_world_matrix = m_local_transformation.M;
+	  
 	for(auto child : this->m_children)
 		child->update_world();
 }
 
 void SceneNode::mark_dirty()
 {
-
 	m_dirty = true;
   for (auto child : m_children)
     child->mark_dirty();
