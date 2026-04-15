@@ -1,21 +1,28 @@
-# ProtoEngine 🚀
+# ProtoEngine
 
-Questo è un progetto nato puramente per scopi didattici.
+Real time graphics engine written in C++23 and OpenGL 4.6.
+This project aims to explore and implement modern rendering techniques, 
+with a particular focus on Physically Based Rendering to fully understand the principles of realistic shading
 
-Si tratta di un motore grafico scritto da zero in C++23 e OpenGL 4.6. 
-L'obbiettivo non è quello di competere con motori esistenti più popolari e industriali, ma piuttosto capire a fondo come funziona un engine grafico e implementarlo usando le conoscenze acquisite in algebra lineare e in computer grafica.
+## Implemented features:
 
-Librerie usate:
+- Program Pipeline
+- Scene Graph
+- Model Loading
+
+
+## Libraries used:
+
 - glad (OpenGL loader)
 - GLFW
+- GLM
 - ImGui
+- Assimp
 
 ## Build instructions
 
 ```bash
-cmake -S . -B ./build -DGLFW_BUILD_WAYLAND=1 -DGLFW_BUILD_X11=0 -DCMAKE_VERBOSE_MAKEFILE=ON
-
-=ON
+cmake -S . -B ./build -DGLFW_BUILD_WAYLAND=1 -DGLFW_BUILD_X11=0 -DCMAKE_VERBOSE_MAKEFILE=OFF
 cmake --build ./build --config Debug --target all -j8
  ./build/ProtoEngine
 ```
