@@ -23,7 +23,11 @@ set_target_properties(imgui PROPERTIES
   CXX_STANDARD_REQUIRED ON
 )
 
-target_compile_definitions(imgui PUBLIC IMGUI_IMPL_OPENGL_LOADER_GLAD)
+target_compile_definitions(imgui PRIVATE 
+  IMGUI_IMPL_OPENGL_LOADER_GLAD
+  GLFW_EXPOSE_NATIVE_WAYLAND
+  IMGUI_IMPL_GLFW_DISABLE_X11
+)
 target_include_directories(imgui PUBLIC "${CMAKE_SOURCE_DIR}/dependencies/glad/include")
 
 find_package(OpenGL QUIET)
