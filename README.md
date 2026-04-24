@@ -10,7 +10,6 @@ with a particular focus on Physically Based Rendering to fully understand the pr
 - Scene Graph
 - Model Loading
 
-
 ## Libraries used:
 
 - glad (OpenGL loader)

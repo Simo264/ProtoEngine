@@ -53,6 +53,7 @@ set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "Disable building all i
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "Disable building Assimp tests" FORCE)
 set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "Disable building Assimp tools" FORCE)
 set(ASSIMP_INSTALL OFF CACHE BOOL "Do not create install target for Assimp" FORCE)
+set(ASSIMP_BUILD_MINIZIP ON CACHE BOOL "" FORCE)
 # Explicitly enable the glTF (and thus GLB), FBX and OBJ importers
 set(ASSIMP_BUILD_FBX_IMPORTER ON CACHE BOOL "Build FBX importer" FORCE)
 set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "Build OBJ importer" FORCE)
