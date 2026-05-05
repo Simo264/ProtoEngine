@@ -21,8 +21,21 @@ with a particular focus on Physically Based Rendering to fully understand the pr
 
 ## Build instructions
 
+Installing dependencies for GLFW:
+
+- On Debian and derivatives like Ubuntu and Linux Mint:
 ```bash
-cmake -S . -B ./build -DGLFW_BUILD_WAYLAND=1 -DGLFW_BUILD_X11=0 -DCMAKE_VERBOSE_MAKEFILE=OFF
+sudo apt install libwayland-dev libxkbcommon-dev xorg-dev
+```
+- On Fedora and derivatives like Red Hat:
+```bash
+sudo dnf install wayland-devel libxkbcommon-devel libXcursor-devel libXi-devel libXinerama-devel libXrandr-devel
+```
+
+Compiling and running the code:
+
+```bash
+cmake -S . -B ./build
 cmake --build ./build --config Debug --target all -j8
  ./build/ProtoEngine
 ```
