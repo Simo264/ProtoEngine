@@ -35,7 +35,7 @@ sudo dnf install wayland-devel libxkbcommon-devel libXcursor-devel libXi-devel l
 Compiling and running the code:
 
 ```bash
-cmake -S . -B ./build
+cmake -B ./build
 cmake --build ./build --config Debug --target all -j8
- ./build/ProtoEngine
+./build/ProtoEngine
 ```
