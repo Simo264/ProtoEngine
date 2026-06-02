@@ -5,9 +5,9 @@ layout(location = 1) in vec3 in_normal; 	// in local coordinate system
 layout(location = 2) in vec2 in_texcoord; // in local coordinate system
 layout(location = 3) in vec3 in_tangent; 	// in tangent coordinate system
 
-uniform mat4 mat_transform;
-uniform mat4 mat_cam; 
-uniform mat4 mat_per;
+layout(location = 0) uniform mat4 mat_transform;
+layout(location = 1) uniform mat4 mat_cam; 
+layout(location = 2) uniform mat4 mat_per;
 
 out vec2 vs_out_texcoord;
 out vec3 vs_out_normal_world_space;

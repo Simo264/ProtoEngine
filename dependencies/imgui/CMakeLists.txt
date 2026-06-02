@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 4.3.3)
 
 project(imgui LANGUAGES C CXX)
 
@@ -19,7 +19,7 @@ target_include_directories(imgui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 set_target_properties(imgui PROPERTIES
   POSITION_INDEPENDENT_CODE ON
-  CXX_STANDARD 11
+  CXX_STANDARD 23
   CXX_STANDARD_REQUIRED ON
 )
 
@@ -28,12 +28,12 @@ target_compile_definitions(imgui PRIVATE
   GLFW_EXPOSE_NATIVE_WAYLAND
   IMGUI_IMPL_GLFW_DISABLE_X11
 )
-target_include_directories(imgui PUBLIC "${CMAKE_SOURCE_DIR}/dependencies/glad/include")
 
 find_package(OpenGL QUIET)
 target_link_libraries(imgui PUBLIC 
 	OpenGL::GL 
+	glad::glad
 	glfw 
-	glad)
+)
 
 add_library(imgui::imgui ALIAS imgui)

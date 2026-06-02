@@ -1,4 +1,5 @@
 .cache/
 .clangd
-build/
 .zed/
+.vscode/
+build/

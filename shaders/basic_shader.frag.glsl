@@ -10,7 +10,7 @@ out vec4 fs_out_color;
 layout(binding = 0) uniform sampler2D u_texture_color;
 layout(binding = 1) uniform sampler2D u_texture_normal;
 
-uniform vec3 u_camera_eye;
+layout(location = 0) uniform vec3 u_camera_eye;
 
 #define PI 3.1415926535897932384626433832795
  

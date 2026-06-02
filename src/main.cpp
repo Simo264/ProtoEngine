@@ -57,8 +57,8 @@ static auto init_context()
   glfwMakeContextCurrent(window);
   gladLoadGL(glfwGetProcAddress);
   glfwSetFramebufferSizeCallback(window, []([[maybe_unused]] GLFWwindow *window, int width, int height) {
-      glViewport(0, 0, width, height);
-      aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
+    glViewport(0, 0, width, height);
+    aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
   });
   glViewport(0, 0, WINDOW_W, WINDOW_H);
 
