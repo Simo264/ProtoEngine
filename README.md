@@ -20,6 +20,9 @@ with a particular focus on Physically Based Rendering to fully understand the pr
 
 ## Build instructions
 
+Installing dependencies for GLFW:
+
+- On Debian and derivatives like Ubuntu and Linux Mint:
 ```bash
 conan profile detect --force
 conan install . -s build_type=Debug --output-folder=build --build=missing
