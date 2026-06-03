@@ -18,15 +18,15 @@ void main()
 {
 	// Sample the surface color from the texture
   vec3 surface_color = texture(u_texture_color, vs_out_texcoord).rgb;
-
-#define NORMAL_MAP 0
+  
+#define NORMAL_MAP 1
 #if NORMAL_MAP 
-  // Sample the normal from normal texture as color which is in range [0, 1]. 
+  // Sample the normal from normal texture as color which is in range [0, 1].
   // Note: this vector is in tangent space.
   vec3 normal_sampled = texture(u_texture_normal, vs_out_texcoord).rgb;
 	normal_sampled = normalize(normal_sampled*2.0 - 1.0); // now it's in range [-1, 1]
 	// Transform the sampled normal vector from tangent space to world space
-	vec3 n = normalize(vs_out_TBN * normal_sampled); 
+	vec3 n = normalize(vs_out_TBN * normal_sampled);
 #else
 	vec3 n = normalize(vs_out_normal_world_space);
 #endif

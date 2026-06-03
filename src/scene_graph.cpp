@@ -2,6 +2,7 @@
 #include "transformation.hpp"
 #include "pipeline.hpp"
 
+#include <algorithm>
 #include <glad/gl.h>
 #include <string_view>
 #include <stack>
@@ -10,8 +11,9 @@
 // 		SceneNode
 // ===============================================
 
-SceneNode::SceneNode(std::string_view name) : name{ name.data() }
+SceneNode::SceneNode(std::string name)
 {
+  this->name = std::move(name);
 	this->m_parent = nullptr;
 	this->m_mesh = nullptr;
 	this->m_children = {};
@@ -62,7 +64,7 @@ void SceneNode::mark_dirty()
 
 SceneNode* Scene::create_node(std::string_view name)
 {
-	m_nodes.emplace_back(std::make_unique<SceneNode>(name));
+	m_nodes.emplace_back(std::make_unique<SceneNode>(name.data()));
 	return m_nodes.back().get();
 }
 

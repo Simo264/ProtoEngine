@@ -96,7 +96,7 @@
 class SceneNode 
 {
 public:
-  SceneNode(std::string_view name);
+  SceneNode(std::string name);
 
   auto parent() const { return m_parent; }
   auto& children() const { return m_children; }
@@ -109,7 +109,7 @@ public:
   // Set the local transformation
   void set_transform(const Transformation &local_transf);
   // Set the mesh reference
-  void set_mesh(StaticMesh* mesh) { this->m_mesh = mesh; }
+  void set_mesh(const StaticMesh* mesh) { this->m_mesh = mesh; }
   // Update the world transformation of this node and all its children nodes
   void update_world();
   
@@ -120,7 +120,7 @@ private:
 
   SceneNode* m_parent;
   std::vector<SceneNode*> m_children;
-  StaticMesh* m_mesh;
+  const StaticMesh* m_mesh;
   Transformation m_local_transformation;
   glm::mat4 m_world_matrix;
   bool m_dirty;
@@ -129,7 +129,7 @@ private:
 class Scene
 {
 public:
-	Scene() = default;
+	Scene() : m_nodes{}, m_root{ nullptr } {}
 	
 	SceneNode* create_node(std::string_view name);
 	
@@ -141,5 +141,5 @@ public:
 	
 private:
 	std::vector<std::unique_ptr<SceneNode>> m_nodes;
-	SceneNode* m_root{ nullptr };
+	SceneNode* m_root;
 };

@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include <stb_image.h>
+#include <stdexcept>
 
 Texture Texture::create_from_file(const std::filesystem::path& path, 
                                   TextureImageFormat image_format,
@@ -16,12 +17,9 @@ Texture Texture::create_from_file(const std::filesystem::path& path,
                                   TextureFilteringMode mag_filter,
                                   TextureFilteringMode min_filter)
 {
- 	if(!std::filesystem::exists(path) || !std::filesystem::is_regular_file(path))
-  {
-    std::println("File not found or not a regular file: {}", path.string());
-    exit(1);
-  }
-  
+ 	if(!std::filesystem::exists(path))
+    throw std::runtime_error(std::format("Texture image not found: {}", path.string()));
+
   auto width{ 0 }, height{ 0 }, nr_channels{ 0 };
   auto data = stbi_load(path.string().c_str(), &width, &height, &nr_channels, desired_channels);
   auto levels = static_cast<u32>(std::floor(std::log2(std::max(width, height))) + 1);

@@ -236,3 +236,43 @@ void ProgramPipelineObject::set_active_program(ShaderProgram program) const
 	glActiveShaderProgram(m_id, program.id());
 }
 
+
+
+ShaderObject create_shader_object(const std::filesystem::path& filepath, ShaderStage stage)
+{
+  auto shader_object = ShaderObject{};
+  shader_object.create(stage);
+  shader_object.load_source_code(filepath.string());
+  shader_object.compile();
+  if (!shader_object.check_compile_status())
+    throw std::runtime_error(std::format("Shader compilation error: {}", shader_object.get_compile_log()));
+  std::println("Shader compiled successfully");
+  return shader_object;
+}
+
+ShaderProgram create_shader_program(ShaderObject shader_obj)
+{
+  auto program = ShaderProgram{};
+  program.create();
+  program.attach_shader(shader_obj);
+  program.set_separable(true);
+  program.link();
+  if (!program.check_link_status())
+    throw std::runtime_error(std::format("Error during the linking: {}", program.get_link_log()));
+  
+  program.detach_shader(shader_obj);
+  std::println("Shader program created successfully");
+  return program;
+}
+
+ProgramPipelineObject create_pipeline_object(ShaderProgram vertex_program, ShaderProgram fragment_program)
+{
+  auto pipeline = ProgramPipelineObject{};
+  pipeline.create();
+  pipeline.bind_program_stage(PipelineStage::VertexShader, vertex_program);
+  pipeline.bind_program_stage(PipelineStage::FragmentShader, fragment_program);
+  if (!pipeline.validate_pipeline())
+    throw std::runtime_error(std::format("Error during the validation: {}", pipeline.get_validation_status()));
+  
+  return pipeline;
+}

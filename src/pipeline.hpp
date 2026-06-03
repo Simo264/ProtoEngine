@@ -184,3 +184,8 @@ public:
 private:
 	ProgramPipelineID m_id; 
 };
+
+
+ShaderObject create_shader_object(const std::filesystem::path& filepath, ShaderStage stage);
+ShaderProgram create_shader_program(ShaderObject shader_obj);
+ProgramPipelineObject create_pipeline_object(ShaderProgram vertex_program, ShaderProgram fragment_program);

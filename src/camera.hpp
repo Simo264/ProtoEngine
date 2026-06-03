@@ -39,6 +39,8 @@ public:
   // Returns the angles in radians
   auto get_euler_angles() const { return glm::eulerAngles(orientation); }
   
+	void handle_input(struct GLFWwindow* window);
+
 	glm::vec3 eye; 	// camera position
 	glm::quat orientation;
 

@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <memory>
 #include <print>
+#include <stdexcept>
 
 #include "basic_types.hpp"
 #include "pipeline.hpp"
@@ -31,20 +32,28 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#include <assimp/Importer.hpp>      // C++ importer interface
-#include <assimp/scene.h>           // Output data structure
-#include <assimp/postprocess.h>     // Post processing flags
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 
 static constexpr auto WINDOW_W = 640;
 static constexpr auto WINDOW_H = 480;
 static auto aspect_ratio = static_cast<f32>(WINDOW_W) / static_cast<f32>(WINDOW_H);
 
-static auto program_vertex_object = ShaderProgram{};
-static auto program_fragment_object = ShaderProgram{};
-static auto pipeline_object = ProgramPipelineObject{};
+static const auto models_dir = std::filesystem::current_path() / "models";
+static const auto shaders_dir = std::filesystem::current_path() / "shaders";
 
-static auto texture_color = Texture{};
-static auto texture_normal = Texture{};
+// static auto program_vertex_object = ShaderProgram{};
+// static auto program_fragment_object = ShaderProgram{};
+// static auto pipeline_object = ProgramPipelineObject{};
+
+struct ModelInfo
+{
+  Texture tex_diffuse;
+  Texture tex_normal;
+  std::vector<Vertex> vertices;
+  std::vector<u32> indices;
+};
 
 static auto init_context() 
 {
@@ -74,104 +83,30 @@ static auto init_context()
   return window;
 }
 
-static void create_pipeline_object() 
-{
-  auto shaders_dir = std::filesystem::current_path() / "shaders";
-
-  auto vertex_shader_obj = ShaderObject{};
-  vertex_shader_obj.create(ShaderStage::Vertex);
-  vertex_shader_obj.load_source_code(shaders_dir / "basic_shader.vert.glsl");
-  vertex_shader_obj.compile();
-  auto status = vertex_shader_obj.check_compile_status();
-  if (!status)
-    std::println("Shader compilation error: {}", vertex_shader_obj.get_compile_log());
-
-  auto fragment_shader_obj = ShaderObject{};
-  fragment_shader_obj.create(ShaderStage::Fragment);
-  fragment_shader_obj.load_source_code(shaders_dir / "basic_shader.frag.glsl");
-  fragment_shader_obj.compile();
-  status = fragment_shader_obj.check_compile_status();
-  if (!status)
-    std::println("Shader compilation error: {}", fragment_shader_obj.get_compile_log());
-
-  program_vertex_object = ShaderProgram{};
-  program_vertex_object.create();
-  program_vertex_object.attach_shader(vertex_shader_obj);
-  program_vertex_object.set_separable(true);
-  program_vertex_object.link();
-  status = program_vertex_object.check_link_status();
-  if (!status)
-    std::println("Link status: {}", program_vertex_object.get_link_log());
-
-  program_vertex_object.detach_shader(vertex_shader_obj);
-
-  program_fragment_object = ShaderProgram{};
-  program_fragment_object.create();
-  program_fragment_object.attach_shader(fragment_shader_obj);
-  program_fragment_object.set_separable(true);
-  program_fragment_object.link();
-  status = program_fragment_object.check_link_status();
-  if (!status)
-    std::println("Link status: {}", program_fragment_object.get_link_log());
-
-  program_fragment_object.detach_shader(fragment_shader_obj);
-
-  pipeline_object = ProgramPipelineObject{};
-  pipeline_object.create();
-  pipeline_object.bind_program_stage(PipelineStage::VertexShader, program_vertex_object);
-  pipeline_object.bind_program_stage(PipelineStage::FragmentShader, program_fragment_object);
-  status = pipeline_object.validate_pipeline();
-  if (!status)
-    std::println("pipeline object status: {}", pipeline_object.get_validation_status());
-}
-
-static void handle_camera_input(auto window, auto &camera) 
-{
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
-  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) camera.rotate_pitch(+glm::radians(1.0f));
-  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) camera.rotate_pitch(-glm::radians(1.0f));
-  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) camera.rotate_yaw(+glm::radians(1.0f));
-  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camera.rotate_yaw(-glm::radians(1.0f));
-  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.eye += camera.gaze() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.eye -= camera.gaze() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.eye -= camera.right() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.eye += camera.right() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.eye += camera.up() * 0.1f;
-  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) camera.eye -= camera.up() * 0.1f;
-}
-
 static auto import_model(const std::filesystem::path& filepath)
 {
   std::println("=========================");
   std::println("Importing model: {}", filepath.string());
-	if(!std::filesystem::exists(filepath) || !std::filesystem::is_regular_file(filepath))
-	{
-		std::println("File does not exist or is not a regular file: {}", filepath.string());
-		exit(1);
-	}
+	if(!std::filesystem::exists(filepath))
+    throw std::runtime_error("File does not exist");
 
-  // Create an instance of the Importer class
   auto importer = Assimp::Importer{};
-  const auto scene = importer.ReadFile(filepath.string().c_str(), 
+  const auto* scene = importer.ReadFile(filepath.string().c_str(), 
     aiProcess_CalcTangentSpace |
     aiProcess_Triangulate | 
     aiProcess_FlipUVs |
     aiProcess_JoinIdenticalVertices);
 
-  // If the import failed, report it
-  if (scene == nullptr) 
-  {
-    std::println("Error on loading scene {}: {}", filepath.string(), importer.GetErrorString());
-    exit(1);
-  }
+  if (!scene) 
+    throw std::runtime_error(std::format("Error on loading scene: {}", importer.GetErrorString()));
 
-  // Now we can access the file's contents.
-  std::println("num meshes: {}", scene->mNumMeshes);
+  std::println("num_meshes: {}", scene->mNumMeshes);
   auto aimesh = scene->mMeshes[0];
   
-  std::println("num vertices: {}", aimesh->mNumVertices);
+  std::println("num_vertices: {}", aimesh->mNumVertices);
   
   // load vertices
+  
   auto vertices = std::vector<Vertex>{};
   vertices.reserve(aimesh->mNumVertices);
   for (auto i = 0u; i < aimesh->mNumVertices; i++) 
@@ -187,6 +122,7 @@ static auto import_model(const std::filesystem::path& filepath)
   }
 
   // load indices
+
   auto indices = std::vector<u32>{};
   indices.reserve(aimesh->mNumFaces * 3);
   for (auto i = 0u; i < aimesh->mNumFaces; i++) 
@@ -197,9 +133,9 @@ static auto import_model(const std::filesystem::path& filepath)
     indices.emplace_back(face.mIndices[2]);
   }
 
-  if(!scene->HasMaterials())
-    std::println("No materials in this scene!");
-  
+  auto texture_diffuse = Texture{};
+  auto texture_normal = Texture{};
+
   auto material = scene->mMaterials[aimesh->mMaterialIndex];
   std::println("Material name: {}", material->GetName().C_Str());
   std::println("Base color texture count: {}", material->GetTextureCount(aiTextureType_BASE_COLOR));
@@ -221,97 +157,132 @@ static auto import_model(const std::filesystem::path& filepath)
     {
       std::println("Embedded texture base color/diffuse: {}", path.C_Str());
       
-      if(!texture_color.is_valid())
+      if(!texture_diffuse.is_valid())
       {
-        texture_color = Texture::create_from_memory(
+        texture_diffuse = Texture::create_from_memory(
           embedded_tex->pcData,
           embedded_tex->mWidth,
-          TextureImageFormat::RGB8,
+          TextureImageFormat::SRGB8,
           PixelDataFormat::RGB,
           PixelDataType::UnsignedByte,
-          STBI_rgb);
+          STBI_rgb
+        );
       }
     }
     else 
     {
       std::println("External texture base color/diffuse: {}", path.C_Str());
-      if(!texture_color.is_valid())
+      if(!texture_diffuse.is_valid())
       {
-        texture_color = Texture::create_from_file(
-          std::filesystem::current_path() / "res/models/kenny_mini_dungeon/colormap.png", 
-          TextureImageFormat::RGB8, 
+        texture_diffuse = Texture::create_from_file(
+          filepath.parent_path() / path.C_Str(),
+          TextureImageFormat::SRGB8, 
           PixelDataFormat::RGB,
           PixelDataType::UnsignedByte,
-          STBI_rgb);
+          STBI_rgb
+        );
       }
     }
   }
   
-  if (material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS)
+  if (material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS || 
+      material->GetTexture(aiTextureType_HEIGHT, 0, &path) == AI_SUCCESS)
   {
-    std::println("Material normal map: {}", path.C_Str());
+    auto embedded_tex = scene->GetEmbeddedTexture(path.C_Str());
+    if (embedded_tex) 
+    {
+      if(!texture_normal.is_valid()) 
+      {
+        texture_normal = Texture::create_from_memory(
+          embedded_tex->pcData, 
+          embedded_tex->mWidth, 
+          TextureImageFormat::RGB8,
+          PixelDataFormat::RGB,
+          PixelDataType::UnsignedByte, 
+          STBI_rgb
+        );
+      }
+    } 
+    else  
+    {
+      if(!texture_normal.is_valid()) 
+      {
+        texture_normal = Texture::create_from_file(
+          filepath.parent_path() / path.C_Str(), 
+          TextureImageFormat::RGB8, 
+          PixelDataFormat::RGB, 
+          PixelDataType::UnsignedByte, 
+          STBI_rgb
+        );
+      }
+    }
   }
 
   std::println("=========================");
-  return std::unique_ptr<StaticMesh>(new StaticMesh(
-    vertices.data(), 
-    vertices.size(), 
-    indices.data(), 
-    indices.size()));
+  
+  return ModelInfo{
+    .tex_diffuse = texture_diffuse,
+    .tex_normal = texture_normal,
+    .vertices = std::move(vertices),
+    .indices = std::move(indices)
+  };
 }
 
 int main() 
 { 
 	auto window = init_context();
 	
-	create_pipeline_object();
-	
+  auto vertex_shader = create_shader_object(shaders_dir / "shader.vert.glsl", ShaderStage::Vertex);
+  auto vertex_program = create_shader_program(vertex_shader);
+  auto base_color_shader = create_shader_object(shaders_dir / "base_color.frag.glsl", ShaderStage::Fragment);
+  auto base_color_program = create_shader_program(base_color_shader);
+  auto normal_color_shader = create_shader_object(shaders_dir / "normal_color.frag.glsl", ShaderStage::Fragment);
+  auto normal_color_program = create_shader_program(normal_color_shader);
+  auto lighting_shader = create_shader_object(shaders_dir / "lighting.frag.glsl", ShaderStage::Fragment);
+  auto lighting_program = create_shader_program(lighting_shader);
+
+  auto pipeline_object = create_pipeline_object(vertex_program, normal_color_program);
+
  	auto camera = Camera(0.1f, 100.0f, 45.f, aspect_ratio);
+  camera.eye.z = 1.0f;
 
   // let's define the scene graph hierarchy
+  
   auto meshes = std::vector<std::unique_ptr<StaticMesh>>{};
   auto scene = Scene{};
-  scene.set_root(scene.create_node("World"));
-  for(const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path() / "res/models/kenny_mini_dungeon"))
-  {
-    auto filename = entry.path().filename();
-    auto extension = filename.extension();
-    if(extension == ".glb")
-    {
-      auto& mesh = meshes.emplace_back(import_model(entry.path()));
-      auto node = scene.create_node(filename.stem().string());
-      scene.root()->add_child(node);
-      node->set_mesh(mesh.get());
-      
-      // arrange on a centered grid so meshes don't overlap at the origin
-      constexpr auto spacing = 2.5f;
-      constexpr auto cols = 8;
-      constexpr auto base_y = 0.0f;
-      auto idx = meshes.size() - 1;
-      auto col = static_cast<int>(idx % cols);
-      auto row = static_cast<int>(idx / cols);
-      auto x_offset = (static_cast<float>(col) - (static_cast<float>(cols - 1) / 2.0f)) * spacing;
-      auto z_offset = static_cast<float>(row) * spacing;
-      auto t = Transformation{};
-      t.position = glm::vec3{ x_offset, base_y, z_offset };
-      node->set_transform(t);
-    }
-  }
+  auto world_node = scene.create_node("World");
+  auto lion_head_node = scene.create_node("Lion head");
+  world_node->add_child(lion_head_node);
+  scene.set_root(world_node);
+  
+  auto model = import_model(models_dir / "lion_head/lion_head_1k.gltf");
+  model.tex_diffuse.bind_texture_unit(0);
+  model.tex_normal.bind_texture_unit(1);
+  
+  auto mesh_object = std::make_unique<StaticMesh>(
+    model.vertices.data(),
+    model.vertices.size(),
+    model.indices.data(),
+    model.indices.size()
+  );
+  lion_head_node->set_mesh(mesh_object.get());
 
   glEnable(GL_DEPTH_TEST);  	// enable depth testing
   glDepthFunc(GL_LESS);    	// specify the value used for depth buffer comparisons
   glDepthMask(GL_TRUE);    	// enable/disable writing into the depth buffer
   glClearDepthf(1.0f);       	// specify the clear value for the depth buffer
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f); // specify the clear value for the color buffer
-  texture_color.bind_texture_unit(0);
 
   while (!glfwWindowShouldClose(window)) 
   {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) 
+      glfwSetWindowShouldClose(window, GLFW_TRUE);
+    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear buffers to preset values
 
     scene.update();
     
-    handle_camera_input(window, camera);
+    camera.handle_input(window);
     camera.aspect = aspect_ratio;
     auto mat_camera = camera.canonical_to_camera();
     auto mat_persp = camera.get_perspective();
@@ -326,13 +297,13 @@ int main()
     gui_draw_inspector();
     
     pipeline_object.bind();
-    pipeline_object.set_active_program(program_fragment_object);
-    program_fragment_object.set_uniform_vector3f(program_fragment_object.get_uniform_location("u_camera_eye"), &camera.eye[0]); 
+    pipeline_object.set_active_program(normal_color_program);
+    //normal_color_program.set_uniform_vector3f(0, &camera.eye[0]); // u_camera_eye => location 0
     
-    pipeline_object.set_active_program(program_vertex_object);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_cam"), &mat_camera[0][0]);
-    program_vertex_object.set_uniform_mat4f(program_vertex_object.get_uniform_location("mat_per"), &mat_persp[0][0]);
-    scene.render(program_vertex_object);
+    pipeline_object.set_active_program(vertex_program);
+    vertex_program.set_uniform_mat4f(1, &mat_camera[0][0]);    // mat_cam => location 1
+    vertex_program.set_uniform_mat4f(2, &mat_persp[0][0]);     // mat_per => location 2
+    scene.render(vertex_program);
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

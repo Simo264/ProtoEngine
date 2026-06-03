@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <stdexcept>
 
-StaticMesh::StaticMesh(Vertex* vertices, u32 nr_vertices, u32* indices, u32 nr_indices) : 
+StaticMesh::StaticMesh(const Vertex* vertices, u32 nr_vertices, const u32* indices, u32 nr_indices) : 
 	m_nr_vertices{ nr_vertices },
 	m_nr_indices{ nr_indices }
 {

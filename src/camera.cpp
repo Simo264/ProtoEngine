@@ -1,5 +1,6 @@
 #include "camera.hpp"
 
+#include <GLFW/glfw3.h>
 #include <glm/ext/matrix_transform.hpp>
 
 // ==================================
@@ -119,4 +120,20 @@ void Camera::rotate_roll(f32 angle_radians)
 {
   glm::quat q = glm::angleAxis(angle_radians, glm::vec3(0, 0, 1));
   orientation = glm::normalize(orientation * q);
+}
+
+void Camera::handle_input(struct GLFWwindow* window)
+{
+	constexpr auto camera_speed = 0.01f;
+	
+  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) rotate_pitch(+glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) rotate_pitch(-glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) rotate_yaw(+glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) rotate_yaw(-glm::radians(1.0f));
+  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) eye += gaze() * camera_speed;
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) eye -= gaze() * camera_speed;
+  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) eye -= right() * camera_speed;
+  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) eye += right() * camera_speed;
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) eye += up() * camera_speed;
+  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) eye -= up() * camera_speed;
 }

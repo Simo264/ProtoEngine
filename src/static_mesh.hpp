@@ -29,7 +29,7 @@
 class StaticMesh 
 {
 public:
-	StaticMesh(Vertex* vertices, u32 nr_vertices, u32* indices, u32 nr_indices);
+	StaticMesh(const Vertex* vertices, u32 nr_vertices, const u32* indices, u32 nr_indices);
 	// clear VRAM memory
   ~StaticMesh();
 	
