@@ -3,12 +3,15 @@
 #include "pipeline.hpp"
 #include "static_mesh.hpp"
 #include "transformation.hpp"
+#include "lighthing.hpp"
 
-#include <glm/mat4x4.hpp>
+#include <glm/ext/matrix_float4x4.hpp>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <variant>
+#include <optional>
 
 // Scene graphs consist of a number of scene nodes, kept together in a tree-like
 // structure - each node has a parent node, and a number of child nodes. Each
@@ -92,25 +95,42 @@
 // - The Scene class owns all nodes (unique_ptr)
 // - The SceneNode class contains only references to them (raw pointer)
 
-
-class SceneNode 
+class SceneNode
 {
 public:
-  SceneNode(std::string name);
+  using Content = std::variant<std::monostate,
+                               const StaticMesh*,
+                               LightProperties>;
+
+  SceneNode(std::string name) :
+    name{ std::move(name) },
+	  m_parent{ nullptr },
+	  m_children{},
+    m_content(std::monostate{}),
+	  m_local_transformation{},
+	  m_world_matrix{ 1.0f },
+	  m_dirty{ false }
+  {}
 
   auto parent() const { return m_parent; }
   auto& children() const { return m_children; }
-  auto mesh() const { return m_mesh; }
+ 
+  // Getter/Setter for mesh
+  void set_mesh(const StaticMesh* mesh) { m_content = mesh; }
+  auto has_mesh() const { return std::holds_alternative<const StaticMesh*>(m_content); }
+  std::optional<const StaticMesh*> mesh();
+
+  // Getter/Setter for light
+  void set_light(const LightProperties& light) { m_content = light; }
+  auto has_light() const { return std::holds_alternative<LightProperties>(m_content); }
+  std::optional<LightProperties> light();
+  auto world_light_position() const { return glm::vec3(m_world_matrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)); }
+
   auto& world_matrix() const { return m_world_matrix; }
   auto& local_transform() const { return m_local_transformation; }
 
-  // Appends the child to the parent's child vector and set the parent
   void add_child(SceneNode* child);
-  // Set the local transformation
   void set_transform(const Transformation &local_transf);
-  // Set the mesh reference
-  void set_mesh(const StaticMesh* mesh) { this->m_mesh = mesh; }
-  // Update the world transformation of this node and all its children nodes
   void update_world();
   
   std::string name;
@@ -120,10 +140,12 @@ private:
 
   SceneNode* m_parent;
   std::vector<SceneNode*> m_children;
-  const StaticMesh* m_mesh;
+  
+  Content m_content;
+
   Transformation m_local_transformation;
   glm::mat4 m_world_matrix;
-  bool m_dirty;
+  bool m_dirty; // dirty flag to indicate that the transformation of this node needs to be updated
 };
 
 class Scene

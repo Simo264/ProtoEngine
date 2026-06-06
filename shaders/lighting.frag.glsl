@@ -12,6 +12,11 @@ layout(binding = 1) uniform sampler2D u_texture_normal;
 
 layout(location = 0) uniform vec3 u_camera_eye;
 
+// Define the point light source properties
+layout(location = 3) uniform vec3 u_light_position;
+layout(location = 4) uniform vec3 u_light_color;
+layout(location = 5) uniform float u_light_power_watt;
+
 #define PI 3.1415926535897932384626433832795
  
 void main()
@@ -19,8 +24,8 @@ void main()
 	// Sample the surface color from the texture
   vec3 surface_color = texture(u_texture_color, vs_out_texcoord).rgb;
   
-#define NORMAL_MAP 1
-#if NORMAL_MAP 
+#define USE_NORMAL_MAP 1
+#if USE_NORMAL_MAP 
   // Sample the normal from normal texture as color which is in range [0, 1].
   // Note: this vector is in tangent space.
   vec3 normal_sampled = texture(u_texture_normal, vs_out_texcoord).rgb;
@@ -31,10 +36,6 @@ void main()
 	vec3 n = normalize(vs_out_normal_world_space);
 #endif
 
-  // Define the point light source properties
-  vec3 light_position = vec3(0.0f, 1.5f, +1.5f);
-  float P = 100.0f; // the light power in watt 
-  
   // Calculate the general formula for the irradiance due a point source, E:
   // E 	= (P / 4pi)(cos(theta) / r^2)
   // 		= I * (cos(theta) / r^2)
@@ -44,10 +45,10 @@ void main()
   // I = P / 4pi 
   // cos(theta) = n dot l
   
-  float r = length(light_position - vs_out_frag_world_space); // r = ||p − x||
-  vec3 l = normalize(light_position - vs_out_frag_world_space); // l = (p − x) / r 
+  float r = length(u_light_position - vs_out_frag_world_space); // r = ||p − x||
+  vec3 l = normalize(u_light_position - vs_out_frag_world_space); // l = (p − x) / r 
   float angle_incidence = max(dot(n, l), 0.0);  // the cos(theta) term
-  float I = P / (4*PI);						
+  float I = u_light_power_watt / (4*PI);
   float E = I * (angle_incidence / (r*r));
   
   // Lambertian shading:
@@ -65,7 +66,7 @@ void main()
   // it suffices to just keep three different reflectances, one each for red, green, and blue, 
   // so this shading equation is carried out separately for the three color channels.
   
-  vec3 R = surface_color;
+  vec3 R = surface_color * u_light_color;
   vec3 Lr = (R / PI)*E;
   
   // Many materials have some degree of shininess to them, for examples: metals, plastics, gloss or semi-gloss paints.
@@ -95,8 +96,8 @@ void main()
   
   vec3 v = normalize(u_camera_eye - vs_out_frag_world_space);
   vec3 h = normalize(l + v);
-  vec3 ks = vec3(1.0);
-  int p = 1024;
+  vec3 ks = vec3(0.f); // Specular coefficient
+  int p = 1024; // Shininess exponent
   float specular = pow(max(0.0, dot(n, h)), p);
   
   // Ambient illumination: it prevents shadows from being completely black and allows an easy way to tweak overall scene contrast.

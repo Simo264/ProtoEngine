@@ -151,19 +151,19 @@ i32 ShaderProgram::get_uniform_location(std::string_view name) const
   return glGetUniformLocation(m_id, name.data());
 }
 
-void ShaderProgram::set_uniform_32(i32 location, f32 value) const
+void ShaderProgram::set_uniform_f32(i32 location, f32 value) const
 {
   glUniform1f(location, value); 
 }
 
-void ShaderProgram::set_uniform_vector3f(i32 location, const f32* value) const
+void ShaderProgram::set_uniform_vector3f(i32 location, const glm::vec3& value) const
 {
-  glUniform3fv(location, 1, value);
+  glUniform3fv(location, 1, &value[0]);
 }
 
-void ShaderProgram::set_uniform_mat4f(i32 location, const f32* value) const
+void ShaderProgram::set_uniform_mat4f(i32 location, const glm::mat4& value) const
 {
-  glUniformMatrix4fv(location, 1, GL_FALSE, value);
+  glUniformMatrix4fv(location, 1, GL_FALSE, &value[0][0]);
 }
 
 

@@ -1,5 +1,5 @@
 #pragma once
 
-void gui_camera_window(class Camera& camera);
-void gui_hierarchy_window(class SceneNode* node);
-void gui_draw_inspector(); 
+void gui_camera(class Camera& camera);
+void gui_hierarchy(class SceneNode* node);
+void gui_inspector();

@@ -2,7 +2,6 @@
 #include "transformation.hpp"
 #include "pipeline.hpp"
 
-#include <algorithm>
 #include <glad/gl.h>
 #include <string_view>
 #include <stack>
@@ -10,17 +9,6 @@
 // ===============================================
 // 		SceneNode
 // ===============================================
-
-SceneNode::SceneNode(std::string name)
-{
-  this->name = std::move(name);
-	this->m_parent = nullptr;
-	this->m_mesh = nullptr;
-	this->m_children = {};
-	this->m_local_transformation = Transformation{};
-	this->m_world_matrix = glm::mat4{1.0f};
-	this->m_dirty = false;
-}
 
 void SceneNode::add_child(SceneNode* child) 
 {
@@ -58,6 +46,30 @@ void SceneNode::mark_dirty()
     child->mark_dirty();
 }
 
+std::optional<const StaticMesh*> SceneNode::mesh()
+{ 
+  try 
+  { 
+    return std::get<const StaticMesh*>(m_content); 
+  }
+  catch(const std::bad_variant_access& e) 
+  { 
+    return std::nullopt; 
+  }
+}
+
+std::optional<LightProperties> SceneNode::light()
+{ 
+  try 
+  { 
+    return std::get<LightProperties>(m_content); 
+  }
+  catch(const std::bad_variant_access& e) 
+  { 
+    return std::nullopt; 
+  }
+}
+
 // ===============================================
 // 		Scene
 // ===============================================
@@ -75,24 +87,25 @@ void Scene::render(ShaderProgram program_vertex) const
  
   auto node_stack = std::stack<SceneNode*>{};
   node_stack.push(m_root);
-  
-  auto loc = program_vertex.get_uniform_location("mat_transform");
   while (!node_stack.empty())
   {
     auto current = node_stack.top();
     node_stack.pop();
     
-    if (current->mesh()) 
+    auto opt = current->mesh();
+    if (opt)
     {
+      auto mesh = opt.value();
+
       auto& mat_transform = current->world_matrix();
-      program_vertex.set_uniform_mat4f(loc, &mat_transform[0][0]);
+      program_vertex.set_uniform_mat4f(0, mat_transform); // mat_transform => location 0
       
-      current->mesh()->vao().bind();
-      glDrawElements(GL_TRIANGLES, current->mesh()->nr_indices(), GL_UNSIGNED_INT, 0);
+      mesh->vao().bind();
+      glDrawElements(GL_TRIANGLES, mesh->nr_indices(), GL_UNSIGNED_INT, 0);
     }
     
     auto& children = current->children();
-    for (auto it = children.rbegin(); it != children.rend(); ++it) 
+    for (auto it = children.rbegin(); it != children.rend(); ++it)
     {
       if (*it)
         node_stack.push(*it);

@@ -8,6 +8,9 @@ in mat3 vs_out_TBN;
 out vec4 fs_out_color;
 
 layout(binding = 0) uniform sampler2D u_texture_color;
+layout(binding = 1) uniform sampler2D u_texture_normal;
+
+layout(location = 0) uniform vec3 u_camera_eye;
  
 void main()
 {
