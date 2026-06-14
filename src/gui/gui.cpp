@@ -1,8 +1,9 @@
 #include "gui.hpp"
 
-#include "camera.hpp"
-#include "scene_graph.hpp"
-#include "transformation.hpp"
+#include "../camera.hpp"
+#include "../scene_graph.hpp"
+#include "../transformation.hpp"
+#include "../static_mesh.hpp"
 
 #include <print>
 
@@ -111,25 +112,25 @@ void gui_inspector()
 
   // Mesh section
   // =================================
-  if (selected_node->has_mesh()) 
+  if (auto opt = selected_node->mesh_instance())
   {
     ImGui::SeparatorText("Mesh");
-    auto* mesh = selected_node->mesh().value();
-    ImGui::Text("Vertices: %u", mesh->nr_vertices());
-    ImGui::Text("Indices: %u", mesh->nr_indices());
+    auto mesh_inst = opt.value();
+    ImGui::Text("Vertices: %u", mesh_inst.mesh->nr_vertices());
+    ImGui::Text("Indices: %u", mesh_inst.mesh->nr_indices());
   }
   // Light section
   // =================================
-  else if (selected_node->has_light()) 
+  else if (auto opt = selected_node->light_instance()) 
   {
     ImGui::SeparatorText("Light");
     // Prendi una copia modificabile
-    auto light_props = selected_node->light().value();
+    auto light_inst = opt.value();
     auto light_changed = false;
-    light_changed |= ImGui::ColorEdit3("Color", &light_props.color.x);
-    light_changed |= ImGui::DragFloat("Power", &light_props.power, 0.1f, 0.0f, 100.0f);
+    light_changed |= ImGui::ColorEdit3("Color", &light_inst.color.x);
+    light_changed |= ImGui::DragFloat("Power", &light_inst.power, 0.1f, 0.0f, 100.0f);
     if (light_changed)
-      selected_node->set_light(light_props);
+      selected_node->set_light(light_inst);
   }
   else 
   {

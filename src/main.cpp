@@ -1,17 +1,16 @@
+#include <array>
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <filesystem>
 #include <memory>
 
 #include "basic_types.hpp"
-#include "lighthing.hpp"
+#include "render_types.hpp"
 #include "pipeline.hpp"
 #include "static_mesh.hpp"
 #include "camera.hpp"
-#include "texture.hpp"
 #include "scene_graph.hpp"
 #include "static_mesh.hpp"
-#include "texture.hpp"
 
 #include "io/importer.hpp"
 
@@ -30,6 +29,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <vector>
 
 static constexpr auto WINDOW_W = 640;
 static constexpr auto WINDOW_H = 480;
@@ -66,6 +66,29 @@ static auto init_context()
   return window;
 }
 
+static auto create_floor_mesh() 
+{
+  constexpr auto size = 10.0f;
+  constexpr auto half_size = size / 2.0f;
+  constexpr auto uv_scale = 5.0f;
+
+  constexpr auto vertices = std::array<Vertex, 4>{
+    Vertex{{-half_size, 0.0f, -half_size}, {0.0f, 1.0f, 0.0f}, {0.0f, uv_scale},     {1.0f, 0.0f, 0.0f}}, // 0: Alto-SX
+    Vertex{{ half_size, 0.0f, -half_size}, {0.0f, 1.0f, 0.0f}, {uv_scale, uv_scale}, {1.0f, 0.0f, 0.0f}}, // 1: Alto-DX
+    Vertex{{ half_size, 0.0f,  half_size}, {0.0f, 1.0f, 0.0f}, {uv_scale, 0.0f},     {1.0f, 0.0f, 0.0f}}, // 2: Basso-DX
+    Vertex{{-half_size, 0.0f,  half_size}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f},         {1.0f, 0.0f, 0.0f}}  // 3: Basso-SX
+  };
+
+  constexpr auto indices = std::array<u32, 6>{
+    0, 3, 1,
+    1, 3, 2
+  };
+
+  return std::make_unique<StaticMesh>(
+    vertices.data(), vertices.size(),
+    indices.data(), indices.size()
+  );
+}
 
 int main() 
 { 
@@ -90,24 +113,27 @@ int main()
   
   auto scene = Scene{};
   auto world_node = scene.create_node("World");
+
   auto lion_head_node = scene.create_node("Lion head");
+  auto floor_node = scene.create_node("Floor");
   auto light_node = scene.create_node("Light source");
 
-  light_node->set_light(LightProperties{ .color=glm::vec3{ 1.0f }, .power=10.0f});
+  light_node->set_light(LightInstance{ .color=glm::vec3{ 1.0f }, .power=10.0f});
   light_node->set_transform(Transformation{ .position=glm::vec3{ 0.0f, 0.5f, 0.5f }});
-
+  
+  scene.set_root(world_node);
   world_node->add_child(lion_head_node);
   world_node->add_child(light_node);
-  scene.set_root(world_node);
+  world_node->add_child(floor_node);
   
-  auto model = import_model(models_dir / "lion_head/lion_head_1k.gltf");
-  model.tex_diffuse.bind_texture_unit(0);
-  model.tex_normal.bind_texture_unit(1);
-  
-  auto mesh_object = std::make_unique<StaticMesh>(
-    model.vertices.data(), model.vertices.size(),
-    model.indices.data(), model.indices.size());
-  lion_head_node->set_mesh(mesh_object.get());
+  auto lion_model = import_model(models_dir / "lion_head/lion_head_1k.gltf");
+  auto lion_mesh = std::make_unique<StaticMesh>(
+    lion_model.vertices.data(), lion_model.vertices.size(),
+    lion_model.indices.data(), lion_model.indices.size());
+  lion_head_node->set_mesh(MeshInstance{lion_mesh.get(), lion_model.material } );
+
+  auto floor_mesh = create_floor_mesh();
+  floor_node->set_mesh(MeshInstance{floor_mesh.get(), Material{}});
 
   glEnable(GL_DEPTH_TEST);  	// enable depth testing
   glDepthFunc(GL_LESS);    	// specify the value used for depth buffer comparisons
@@ -138,17 +164,12 @@ int main()
     gui_hierarchy(scene.root());
     gui_inspector();
     
-    pipeline_object.bind();
-    pipeline_object.set_active_program(current_fragment_program);
-    current_fragment_program.set_uniform_vector3f(0, camera.eye); // u_camera_eye => location 0
-    current_fragment_program.set_uniform_vector3f(3, light_node->world_light_position()); // u_light_position => location 3
-    current_fragment_program.set_uniform_vector3f(4, light_node->light()->color); // u_light_color => location 4
-    current_fragment_program.set_uniform_f32(5, light_node->light()->power);      // u_light_power_watt => location 5
-    
-    pipeline_object.set_active_program(vertex_program);
-    vertex_program.set_uniform_mat4f(1, mat_camera); // mat_cam => location 1
-    vertex_program.set_uniform_mat4f(2, mat_persp);  // mat_per => location 2
-    scene.render(vertex_program);
+    scene.render(pipeline_object, 
+                 vertex_program, 
+                 current_fragment_program, 
+                 camera.eye, 
+                 mat_camera, 
+                 mat_persp);
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

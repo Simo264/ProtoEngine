@@ -156,6 +156,11 @@ void ShaderProgram::set_uniform_f32(i32 location, f32 value) const
   glUniform1f(location, value); 
 }
 
+void ShaderProgram::set_uniform_i32(i32 location, i32 value) const
+{
+  glUniform1i(location, value); 
+}
+
 void ShaderProgram::set_uniform_vector3f(i32 location, const glm::vec3& value) const
 {
   glUniform3fv(location, 1, &value[0]);

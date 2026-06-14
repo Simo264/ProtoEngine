@@ -1,7 +1,7 @@
 #pragma once
 
 #include "basic_types.hpp"
-#include "vertex.hpp"
+#include "render_types.hpp"
 #include "vertex_array.hpp"
 
 /**

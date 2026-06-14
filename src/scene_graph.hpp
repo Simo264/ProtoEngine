@@ -1,9 +1,9 @@
 #pragma once
 
 #include "pipeline.hpp"
-#include "static_mesh.hpp"
+
 #include "transformation.hpp"
-#include "lighthing.hpp"
+#include "render_types.hpp"
 
 #include <glm/ext/matrix_float4x4.hpp>
 #include <memory>
@@ -95,12 +95,11 @@
 // - The Scene class owns all nodes (unique_ptr)
 // - The SceneNode class contains only references to them (raw pointer)
 
+
 class SceneNode
 {
 public:
-  using Content = std::variant<std::monostate,
-                               const StaticMesh*,
-                               LightProperties>;
+  using Content = std::variant<std::monostate, MeshInstance, LightInstance>;
 
   SceneNode(std::string name) :
     name{ std::move(name) },
@@ -115,15 +114,13 @@ public:
   auto parent() const { return m_parent; }
   auto& children() const { return m_children; }
  
-  // Getter/Setter for mesh
-  void set_mesh(const StaticMesh* mesh) { m_content = mesh; }
-  auto has_mesh() const { return std::holds_alternative<const StaticMesh*>(m_content); }
-  std::optional<const StaticMesh*> mesh();
+  // mesh instance
+  void set_mesh(MeshInstance instance) { m_content = std::move(instance); }
+  std::optional<MeshInstance> mesh_instance();
 
-  // Getter/Setter for light
-  void set_light(const LightProperties& light) { m_content = light; }
-  auto has_light() const { return std::holds_alternative<LightProperties>(m_content); }
-  std::optional<LightProperties> light();
+  // lighting
+  void set_light(LightInstance light) { m_content = std::move(light); }
+  std::optional<LightInstance> light_instance();
   auto world_light_position() const { return glm::vec3(m_world_matrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)); }
 
   auto& world_matrix() const { return m_world_matrix; }
@@ -159,9 +156,26 @@ public:
 	void set_root(SceneNode* root) { m_root = root; }
 	
 	void update(){ if(m_root) m_root->update_world(); }
-	void render(class ShaderProgram program_vertex) const;
+	void render(class ProgramPipelineObject pipeline,
+              class ShaderProgram program_vertex,
+              class ShaderProgram program_fragment,
+              const glm::vec3& camera_position,
+              const glm::mat4& view_matrix,
+              const glm::mat4& proj_matrix) const;
 	
 private:
+  void setup_light_node(const SceneNode* node, 
+                        const LightInstance& light,
+                        ProgramPipelineObject pipeline, 
+                        ShaderProgram fragment_program) const;
+
+  void render_mesh_node(const SceneNode* node, 
+                        const MeshInstance& instance,
+                        ProgramPipelineObject pipeline, 
+                        ShaderProgram vertex_program,
+                        ShaderProgram fragment_program) const;
+
+
 	std::vector<std::unique_ptr<SceneNode>> m_nodes;
 	SceneNode* m_root;
 };

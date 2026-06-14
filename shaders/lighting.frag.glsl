@@ -7,34 +7,43 @@ in mat3 vs_out_TBN;
 
 out vec4 fs_out_color;
 
+layout(location = 0) uniform vec3 u_camera_eye;
+
+// material uniforms
+layout(location = 5) uniform vec3 u_surface_color;
+layout(location = 6) uniform int  u_has_texture_color;
+layout(location = 7) uniform int  u_has_texture_normal;
+
 layout(binding = 0) uniform sampler2D u_texture_color;
 layout(binding = 1) uniform sampler2D u_texture_normal;
 
-layout(location = 0) uniform vec3 u_camera_eye;
-
-// Define the point light source properties
-layout(location = 3) uniform vec3 u_light_position;
-layout(location = 4) uniform vec3 u_light_color;
-layout(location = 5) uniform float u_light_power_watt;
+// light uniform
+layout(location = 10) uniform vec3 u_light_position;
+layout(location = 11) uniform vec3 u_light_color;
+layout(location = 12) uniform float u_light_power_watt;
 
 #define PI 3.1415926535897932384626433832795
  
 void main()
 {
-	// Sample the surface color from the texture
-  vec3 surface_color = texture(u_texture_color, vs_out_texcoord).rgb;
+  vec3 surface_color = u_surface_color;
+  if (u_has_texture_color != 0)
+    surface_color *= texture(u_texture_color, vs_out_texcoord).rgb;
   
-#define USE_NORMAL_MAP 1
-#if USE_NORMAL_MAP 
-  // Sample the normal from normal texture as color which is in range [0, 1].
-  // Note: this vector is in tangent space.
-  vec3 normal_sampled = texture(u_texture_normal, vs_out_texcoord).rgb;
-	normal_sampled = normalize(normal_sampled*2.0 - 1.0); // now it's in range [-1, 1]
-	// Transform the sampled normal vector from tangent space to world space
-	vec3 n = normalize(vs_out_TBN * normal_sampled);
-#else
-	vec3 n = normalize(vs_out_normal_world_space);
-#endif
+  vec3 n;
+  if (u_has_texture_normal != 0) 
+  {
+    // Sample the normal from normal texture as color which is in range [0, 1].
+    // Note: this vector is in tangent space.
+    vec3 normal_sampled = texture(u_texture_normal, vs_out_texcoord).rgb;
+    normal_sampled = normalize(normal_sampled * 2.0 - 1.0); 
+    // Transform the sampled normal vector from tangent space to world space
+    n = normalize(vs_out_TBN * normal_sampled);
+  } 
+  else 
+  {
+    n = normalize(vs_out_normal_world_space);
+  }
 
   // Calculate the general formula for the irradiance due a point source, E:
   // E 	= (P / 4pi)(cos(theta) / r^2)

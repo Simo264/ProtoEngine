@@ -117,6 +117,7 @@ public:
   i32 get_uniform_location(std::string_view name) const;
   // Specify the value of a uniform variable for the current program object
   void set_uniform_f32(i32 location, f32 value) const;
+  void set_uniform_i32(i32 location, i32 value) const;
   void set_uniform_vector3f(i32 location, const glm::vec3& value) const;
   void set_uniform_mat4f(i32 location, const glm::mat4& value) const;
  
