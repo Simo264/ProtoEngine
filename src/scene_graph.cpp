@@ -77,21 +77,17 @@ SceneNode* Scene::create_node(std::string_view name)
 
 void Scene::render(ProgramPipelineObject pipeline,
                    ShaderProgram program_vertex,
-                   ShaderProgram program_fragment,
-                   const glm::vec3& camera_position,
-                   const glm::mat4& view_matrix,
-                   const glm::mat4& proj_matrix) const
+                   ShaderProgram program_fragment) const
 {
   if(!m_root)
     return;
  
-  pipeline.bind();
-  pipeline.set_active_program(program_vertex);
-  program_vertex.set_uniform_mat4f(ShaderLocation::Vertex::MatCam, view_matrix);
-  program_vertex.set_uniform_mat4f(ShaderLocation::Vertex::MatPer, proj_matrix);
-
-  pipeline.set_active_program(program_fragment);
-  program_fragment.set_uniform_vector3f(ShaderLocation::Fragment::CameraEye, camera_position);
+  // pipeline.bind();
+  // pipeline.set_active_program(program_vertex);
+  // program_vertex.set_uniform_mat4f(ShaderLocation::Vertex::MatCam, view_matrix);
+  // program_vertex.set_uniform_mat4f(ShaderLocation::Vertex::MatPer, proj_matrix);
+  // pipeline.set_active_program(program_fragment);
+  // program_fragment.set_uniform_vector3f(ShaderLocation::Fragment::CameraEye, camera_position);
 
   auto node_stack = std::stack<SceneNode*>{};
   node_stack.push(m_root);
@@ -144,20 +140,20 @@ void Scene::render_mesh_node(const SceneNode* node,
 
   pipeline.set_active_program(fragment_program);
   auto& material = instance.material;
-  fragment_program.set_uniform_vector3f(ShaderLocation::Fragment::SurfaceColor, material.surface_color);
+  fragment_program.set_uniform_vector3f(ShaderLocation::Fragment::Albedo, material.surface_color);
   if (material.tex_diffuse.is_valid()) 
   {
-    material.tex_diffuse.bind_texture_unit(ShaderLocation::Texture::UnitColor);
-    fragment_program.set_uniform_i32(ShaderLocation::Fragment::HasTextureColor, 1);
+    material.tex_diffuse.bind_texture_unit(ShaderLocation::Texture::AlbedoUnit);
+    fragment_program.set_uniform_i32(ShaderLocation::Fragment::HasTextureAlbedo, 1);
   } 
   else 
   {
-    fragment_program.set_uniform_i32(ShaderLocation::Fragment::HasTextureColor, 0);
+    fragment_program.set_uniform_i32(ShaderLocation::Fragment::HasTextureAlbedo, 0);
   }
 
   if (material.tex_normal.is_valid()) 
   {
-    material.tex_normal.bind_texture_unit(ShaderLocation::Texture::UnitNormal);
+    material.tex_normal.bind_texture_unit(ShaderLocation::Texture::NormalUnit);
     fragment_program.set_uniform_i32(ShaderLocation::Fragment::HasTextureNormal, 1);
   } 
   else 

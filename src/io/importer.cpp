@@ -17,25 +17,25 @@ ModelInfo import_model(const std::filesystem::path& filepath)
     throw std::runtime_error("File does not exist");
 
   auto importer = Assimp::Importer{};
-  const auto* scene = importer.ReadFile(filepath.string().c_str(), 
+  const auto* scene = importer.ReadFile(filepath.string().c_str(),
     aiProcess_CalcTangentSpace |
-    aiProcess_Triangulate | 
+    aiProcess_Triangulate |
     aiProcess_FlipUVs |
     aiProcess_JoinIdenticalVertices);
 
-  if (!scene) 
+  if (!scene)
     throw std::runtime_error(std::format("Error on loading scene: {}", importer.GetErrorString()));
 
   std::println("num_meshes: {}", scene->mNumMeshes);
   auto aimesh = scene->mMeshes[0];
-  
+
   std::println("num_vertices: {}", aimesh->mNumVertices);
-  
+
   // load vertices
-  
+
   auto vertices = std::vector<Vertex>{};
   vertices.reserve(aimesh->mNumVertices);
-  for (auto i = 0u; i < aimesh->mNumVertices; i++) 
+  for (auto i = 0u; i < aimesh->mNumVertices; i++)
   {
     auto &vertex = vertices.emplace_back();
     vertex.position = glm::vec3{aimesh->mVertices[i].x, aimesh->mVertices[i].y, aimesh->mVertices[i].z};
@@ -51,7 +51,7 @@ ModelInfo import_model(const std::filesystem::path& filepath)
 
   auto indices = std::vector<u32>{};
   indices.reserve(aimesh->mNumFaces * 3);
-  for (auto i = 0u; i < aimesh->mNumFaces; i++) 
+  for (auto i = 0u; i < aimesh->mNumFaces; i++)
   {
     auto face = aimesh->mFaces[i];
     indices.emplace_back(face.mIndices[0]);
@@ -67,25 +67,25 @@ ModelInfo import_model(const std::filesystem::path& filepath)
   std::println("Diffuse texture count: {}", aimaterial->GetTextureCount(aiTextureType_DIFFUSE));
   std::println("Normal texture count: {}", aimaterial->GetTextureCount(aiTextureType_NORMALS));
   std::println("Height texture count: {}", aimaterial->GetTextureCount(aiTextureType_HEIGHT));
-  
+
   auto base_color = aiColor4D(1.0f, 1.0f, 1.0f, 1.0f);
-  if (aimaterial->Get(AI_MATKEY_BASE_COLOR, base_color) == AI_SUCCESS || 
+  if (aimaterial->Get(AI_MATKEY_BASE_COLOR, base_color) == AI_SUCCESS ||
       aimaterial->Get(AI_MATKEY_COLOR_DIFFUSE, base_color) == AI_SUCCESS)
   {
     std::println("Material base color: r={}, g={}, b={}, a={}", base_color.r, base_color.g, base_color.b, base_color.a);
     material.surface_color = { base_color.r, base_color.g, base_color.b };
   }
-  
-  
+
+
   auto path = aiString{};
-  if (aimaterial->GetTexture(aiTextureType_BASE_COLOR, 0, &path) == AI_SUCCESS || 
+  if (aimaterial->GetTexture(aiTextureType_BASE_COLOR, 0, &path) == AI_SUCCESS ||
       aimaterial->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
   {
     auto embedded_tex = scene->GetEmbeddedTexture(path.C_Str());
     if (embedded_tex)
     {
       std::println("Embedded texture base color/diffuse: {}", path.C_Str());
-      
+
       if(!material.tex_diffuse.is_valid())
       {
         material.tex_diffuse = Texture::create_from_memory(
@@ -98,14 +98,14 @@ ModelInfo import_model(const std::filesystem::path& filepath)
         );
       }
     }
-    else 
+    else
     {
       std::println("External texture base color/diffuse: {}", path.C_Str());
       if(!material.tex_diffuse.is_valid())
       {
         material.tex_diffuse = Texture::create_from_file(
           filepath.parent_path() / path.C_Str(),
-          TextureImageFormat::SRGB8, 
+          TextureImageFormat::SRGB8,
           PixelDataFormat::RGB,
           PixelDataType::UnsignedByte,
           STBI_rgb
@@ -113,34 +113,34 @@ ModelInfo import_model(const std::filesystem::path& filepath)
       }
     }
   }
-  
-  if (aimaterial->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS || 
+
+  if (aimaterial->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS ||
       aimaterial->GetTexture(aiTextureType_HEIGHT, 0, &path) == AI_SUCCESS)
   {
     auto embedded_tex = scene->GetEmbeddedTexture(path.C_Str());
-    if (embedded_tex) 
+    if (embedded_tex)
     {
-      if(!material.tex_normal.is_valid()) 
+      if(!material.tex_normal.is_valid())
       {
         material.tex_normal = Texture::create_from_memory(
-          embedded_tex->pcData, 
-          embedded_tex->mWidth, 
+          embedded_tex->pcData,
+          embedded_tex->mWidth,
           TextureImageFormat::RGB8,
           PixelDataFormat::RGB,
-          PixelDataType::UnsignedByte, 
+          PixelDataType::UnsignedByte,
           STBI_rgb
         );
       }
-    } 
-    else  
+    }
+    else
     {
-      if(!material.tex_normal.is_valid()) 
+      if(!material.tex_normal.is_valid())
       {
         material.tex_normal = Texture::create_from_file(
-          filepath.parent_path() / path.C_Str(), 
-          TextureImageFormat::RGB8, 
-          PixelDataFormat::RGB, 
-          PixelDataType::UnsignedByte, 
+          filepath.parent_path() / path.C_Str(),
+          TextureImageFormat::RGB8,
+          PixelDataFormat::RGB,
+          PixelDataType::UnsignedByte,
           STBI_rgb
         );
       }
@@ -148,7 +148,7 @@ ModelInfo import_model(const std::filesystem::path& filepath)
   }
 
   std::println("=========================");
-  
+
   return ModelInfo{
     .vertices = std::move(vertices),
     .indices = std::move(indices),

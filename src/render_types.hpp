@@ -37,29 +37,32 @@ namespace ShaderLocation
 {
   namespace Vertex 
   {
-    constexpr auto MatTransform      = 0;
-    constexpr auto MatCam            = 1;
-    constexpr auto MatPer            = 2;
+    constexpr auto MatTransform      = 0; // transform matrix
+    constexpr auto MatCam            = 1; // camera matrix
+    constexpr auto MatPer            = 2; // perspective matrix
   }
 
   namespace Fragment 
   {
     constexpr auto CameraEye         = 0;
+    constexpr auto HasTextureAlbedo  = 1;
+    constexpr auto HasTextureNormal  = 2;
     
     // Material
-    constexpr auto SurfaceColor      = 5;
-    constexpr auto HasTextureColor   = 6;
-    constexpr auto HasTextureNormal  = 7;
+    constexpr auto Albedo      = 5; // the albedo color
+    constexpr auto Metallic    = 6; // the metallic factor
+    constexpr auto Roughness   = 7; // the roughness factor
 
-    // Light
+    // Light properties
     constexpr auto LightPosition     = 10;
     constexpr auto LightColor        = 11;
     constexpr auto LightPowerWatt    = 12;
   }
 
-  namespace Texture 
+  namespace Texture
   {
-    constexpr auto UnitColor         = 0;
-    constexpr auto UnitNormal        = 1;
+    constexpr auto AlbedoUnit        = 0; // the albedo texture binding unit
+    constexpr auto NormalUnit        = 1; // the normal texture binding unit
+    constexpr auto RoughnessUnit     = 2; // the roughness texture binding unit
   }
 }

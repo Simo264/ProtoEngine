@@ -158,10 +158,7 @@ public:
 	void update(){ if(m_root) m_root->update_world(); }
 	void render(class ProgramPipelineObject pipeline,
               class ShaderProgram program_vertex,
-              class ShaderProgram program_fragment,
-              const glm::vec3& camera_position,
-              const glm::mat4& view_matrix,
-              const glm::mat4& proj_matrix) const;
+              class ShaderProgram program_fragment) const;
 	
 private:
   void setup_light_node(const SceneNode* node, 

@@ -7,10 +7,47 @@
 
 #include <print>
 
+#include <glad/gl.h>
+#include <GLFW/glfw3.h>
+
 #include <glm/vec3.hpp>
 #include <glm/trigonometric.hpp>
 #include <glm/gtc/quaternion.hpp>
+
 #include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+extern f32 aspect_ratio;
+
+GLFWwindow* init_glfw_context(i32 width, i32 height, std::string_view title)
+{
+  glfwInit();
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_DEPTH_BITS, 24);
+  auto window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
+  glfwMakeContextCurrent(window);
+  gladLoadGL(glfwGetProcAddress);
+  glfwSetFramebufferSizeCallback(window, []([[maybe_unused]] GLFWwindow *window, i32 width, i32 height) {
+    glViewport(0, 0, width, height);
+    aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
+  });
+  glViewport(0, 0, width, height);
+
+  // Setup Dear ImGui context
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  auto &io = ImGui::GetIO();
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;           // Enable Keyboard Controls
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
+  io.Fonts->AddFontFromFileTTF("fonts/Iceland-Regular.ttf", 16.f);
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplOpenGL3_Init("#version 460");
+  return window;
+}
 
 void gui_camera(Camera& camera)
 {
@@ -89,7 +126,7 @@ void gui_hierarchy(SceneNode* node)
 	ImGui::End();
 }
 
-void gui_inspector() 
+void gui_inspector(glm::vec3& albedo, f32& metallic, f32& roughness) 
 {
   ImGui::Begin("Inspector");
   if (!selected_node) 
@@ -103,7 +140,7 @@ void gui_inspector()
   // ====================================
   ImGui::SeparatorText("Transform");
   auto t = selected_node->local_transform();
-  bool transform_changed = false;
+  auto transform_changed = false;
   transform_changed |= ImGui::DragFloat3("Position", &t.position.x, 0.01f);
   transform_changed |= ImGui::DragFloat3("Rotation", &t.rotation.x, 0.01f);
   transform_changed |= ImGui::DragFloat3("Scale", &t.scale.x, 0.01f);
@@ -118,6 +155,12 @@ void gui_inspector()
     auto mesh_inst = opt.value();
     ImGui::Text("Vertices: %u", mesh_inst.mesh->nr_vertices());
     ImGui::Text("Indices: %u", mesh_inst.mesh->nr_indices());
+
+    ImGui::ColorEdit3("Albedo", &albedo[0]);
+    auto bool_metallic = metallic > 0.0f;
+    if (ImGui::Checkbox("Metallic", &bool_metallic))
+      metallic = bool_metallic ? 1.0f : 0.0f;
+    ImGui::DragFloat("Roughness", &roughness, 0.01f, 0.0f, 1.0f);
   }
   // Light section
   // =================================
@@ -139,4 +182,27 @@ void gui_inspector()
   }
 
   ImGui::End();
+}
+
+// =======================================
+
+void start_imgui_frame()
+{
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+}
+
+void imgui_render()
+{
+  ImGui::Render();
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  auto& io = ImGui::GetIO();
+  if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) 
+  {
+    auto backup_current_context = glfwGetCurrentContext();
+    ImGui::UpdatePlatformWindows();
+    ImGui::RenderPlatformWindowsDefault();
+    glfwMakeContextCurrent(backup_current_context);
+  }
 }

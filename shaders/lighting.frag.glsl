@@ -8,27 +8,31 @@ in mat3 vs_out_TBN;
 out vec4 fs_out_color;
 
 layout(location = 0) uniform vec3 u_camera_eye;
+layout(location = 1) uniform int  u_has_texture_albedo;
+layout(location = 2) uniform int  u_has_texture_normal;
 
 // material uniforms
-layout(location = 5) uniform vec3 u_surface_color;
-layout(location = 6) uniform int  u_has_texture_color;
-layout(location = 7) uniform int  u_has_texture_normal;
-
-layout(binding = 0) uniform sampler2D u_texture_color;
-layout(binding = 1) uniform sampler2D u_texture_normal;
-
+layout(location = 5) uniform vec3 u_albedo;
 // light uniform
 layout(location = 10) uniform vec3 u_light_position;
 layout(location = 11) uniform vec3 u_light_color;
 layout(location = 12) uniform float u_light_power_watt;
 
+layout(binding = 0) uniform sampler2D u_texture_albedo;
+layout(binding = 1) uniform sampler2D u_texture_normal;
+
+vec3 linear_to_srgb(vec3 color, float gamma) 
+{
+  return pow(color, vec3(1.0f / gamma));
+}
+
 #define PI 3.1415926535897932384626433832795
  
 void main()
 {
-  vec3 surface_color = u_surface_color;
-  if (u_has_texture_color != 0)
-    surface_color *= texture(u_texture_color, vs_out_texcoord).rgb;
+  vec3 surface_color = u_albedo;
+  if (u_has_texture_albedo != 0)
+    surface_color *= texture(u_texture_albedo, vs_out_texcoord).rgb;
   
   vec3 n;
   if (u_has_texture_normal != 0) 
@@ -115,5 +119,8 @@ void main()
   vec3 ambient = k_a * I_a;
   
   Lr = ambient + Lr + (ks * max(0, specular)*E);
-  fs_out_color = vec4(Lr, 1.0);
+
+  // We apply the final sRGB Encoding to send the color to the monitor 
+  vec3 color = Lr / (Lr + vec3(1.0));
+  fs_out_color = vec4(linear_to_srgb(color, 2.2), 1.0);
 }
