@@ -8,7 +8,7 @@ struct GLFWwindow* init_glfw_context(i32 width, i32 height, std::string_view tit
 
 void gui_camera(class Camera& camera);
 void gui_hierarchy(class SceneNode* node);
-void gui_inspector(glm::vec3& albedo, f32& metallic, f32& roughness);
+void gui_inspector();
 
 void start_imgui_frame();
 void imgui_render();

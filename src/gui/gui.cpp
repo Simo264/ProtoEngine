@@ -126,7 +126,7 @@ void gui_hierarchy(SceneNode* node)
 	ImGui::End();
 }
 
-void gui_inspector(glm::vec3& albedo, f32& metallic, f32& roughness) 
+void gui_inspector() 
 {
   ImGui::Begin("Inspector");
   if (!selected_node) 
@@ -152,15 +152,16 @@ void gui_inspector(glm::vec3& albedo, f32& metallic, f32& roughness)
   if (auto opt = selected_node->mesh_instance())
   {
     ImGui::SeparatorText("Mesh");
-    auto mesh_inst = opt.value();
+    auto& mesh_inst = opt.value().get();
     ImGui::Text("Vertices: %u", mesh_inst.mesh->nr_vertices());
     ImGui::Text("Indices: %u", mesh_inst.mesh->nr_indices());
 
-    ImGui::ColorEdit3("Albedo", &albedo[0]);
-    auto bool_metallic = metallic > 0.0f;
+    auto& material = mesh_inst.material;
+    ImGui::ColorEdit3("Albedo", &material.albedo_color[0]);
+    auto bool_metallic = material.metallic_factor > 0.0f;
     if (ImGui::Checkbox("Metallic", &bool_metallic))
-      metallic = bool_metallic ? 1.0f : 0.0f;
-    ImGui::DragFloat("Roughness", &roughness, 0.01f, 0.0f, 1.0f);
+      material.metallic_factor = bool_metallic ? 1.0f : 0.0f;
+    ImGui::DragFloat("Roughness", &material.roughness_factor, 0.01f, 0.0f, 1.0f);
   }
   // Light section
   // =================================
@@ -168,12 +169,9 @@ void gui_inspector(glm::vec3& albedo, f32& metallic, f32& roughness)
   {
     ImGui::SeparatorText("Light");
     // Prendi una copia modificabile
-    auto light_inst = opt.value();
-    auto light_changed = false;
-    light_changed |= ImGui::ColorEdit3("Color", &light_inst.color.x);
-    light_changed |= ImGui::DragFloat("Power", &light_inst.power, 0.1f, 0.0f, 100.0f);
-    if (light_changed)
-      selected_node->set_light(light_inst);
+    auto& light_inst = opt.value().get();
+    ImGui::ColorEdit3("Color", &light_inst.color.x);
+    ImGui::DragFloat("Power", &light_inst.power, 0.1f, 0.0f, 100.0f);
   }
   else 
   {

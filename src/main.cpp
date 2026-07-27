@@ -65,8 +65,6 @@ int main()
   // auto base_color_program = create_shader_program(base_color_shader);
   // auto normal_color_shader = create_shader_object(shaders_dir / "normal_color.frag.glsl", ShaderStage::Fragment);
   // auto normal_color_program = create_shader_program(normal_color_shader);
-  // auto lighting_shader = create_shader_object(shaders_dir / "lighting.frag.glsl", ShaderStage::Fragment);
-  // auto lighting_program = create_shader_program(lighting_shader);
   auto pbr_shader = create_shader_object(shaders_dir / "pbr.frag.glsl", ShaderStage::Fragment);
   auto pbr_program = create_shader_program(pbr_shader);
   
@@ -95,12 +93,12 @@ int main()
   world_node->add_child(light_node);
   // world_node->add_child(floor_node);
   
-  auto lion_model = import_model(models_dir / "murble_bust/marble_bust_01_1k.gltf");
-  auto lion_mesh = std::make_unique<StaticMesh>(
-    lion_model.vertices.data(), lion_model.vertices.size(),
-    lion_model.indices.data(), lion_model.indices.size());
-  mesh_node->set_mesh(MeshInstance{ lion_mesh.get(), lion_model.material } );
-
+  auto model_info = import_model(models_dir / "murble_bust/marble_bust_01_1k.gltf");
+  auto model = std::make_unique<StaticMesh>(
+    model_info.vertices.data(), model_info.vertices.size(),
+    model_info.indices.data(), model_info.indices.size());
+  mesh_node->set_mesh(MeshInstance{ model.get(), model_info.material } );
+  
   // auto floor_mesh = create_floor_mesh();
   // floor_node->set_mesh(MeshInstance{floor_mesh.get(), Material{
   //   .surface_color=glm::vec3{ 0.5f }, .tex_diffuse={}, .tex_normal={}}});
@@ -125,9 +123,9 @@ int main()
   glClearDepthf(1.0f);       	// specify the clear value for the depth buffer
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f); // specify the clear value for the color buffer
 
-  auto albedo = glm::vec3(1.0f, 1.0f, 1.0f);
-  auto metallic = 0.0f;
-  auto roughness = 0.5f;
+  // auto albedo = glm::vec3(1.0f, 1.0f, 1.0f);
+  // auto metallic = 0.0f;
+  // auto roughness = 0.5f;
   
   while (!glfwWindowShouldClose(window)) 
   {
@@ -147,7 +145,7 @@ int main()
 
     gui_camera(camera);
     gui_hierarchy(scene.root());
-    gui_inspector(albedo, metallic, roughness);
+    gui_inspector();
 
     pipeline_object.bind();
     pipeline_object.set_active_program(vertex_program);
@@ -156,9 +154,6 @@ int main()
   
     pipeline_object.set_active_program(current_fragment_program);
     current_fragment_program.set_uniform_vector3f(ShaderLocation::Fragment::CameraEye, camera.eye);
-    current_fragment_program.set_uniform_vector3f(ShaderLocation::Fragment::Albedo, albedo);
-    current_fragment_program.set_uniform_f32(ShaderLocation::Fragment::Metallic, metallic);
-    current_fragment_program.set_uniform_f32(ShaderLocation::Fragment::Roughness, roughness);
     scene.render(pipeline_object,
                  vertex_program,
                  current_fragment_program);

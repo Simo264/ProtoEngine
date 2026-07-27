@@ -16,9 +16,14 @@ struct Vertex
 
 struct Material
 {
-  glm::vec3 surface_color{ 1.0f, 1.0f, 1.0f };
-  Texture tex_diffuse;
+  glm::vec3 albedo_color{ 1.0f, 1.0f, 1.0f };
+  f32 metallic_factor{ 0.0f };
+  f32 roughness_factor{ 0.1f };
+
+  Texture tex_albedo;
   Texture tex_normal;
+  Texture tex_metallic;
+  Texture tex_roughness;
 };
 
 struct MeshInstance 
@@ -44,10 +49,12 @@ namespace ShaderLocation
 
   namespace Fragment 
   {
-    constexpr auto CameraEye         = 0;
-    constexpr auto HasTextureAlbedo  = 1;
-    constexpr auto HasTextureNormal  = 2;
-    
+    constexpr auto CameraEye           = 0;
+    constexpr auto HasTextureAlbedo    = 1;
+    constexpr auto HasTextureNormal    = 2;
+    constexpr auto HasTextureMetallic  = 3;
+    constexpr auto HasTextureRoughness = 4;
+
     // Material
     constexpr auto Albedo      = 5; // the albedo color
     constexpr auto Metallic    = 6; // the metallic factor
@@ -64,5 +71,6 @@ namespace ShaderLocation
     constexpr auto AlbedoUnit        = 0; // the albedo texture binding unit
     constexpr auto NormalUnit        = 1; // the normal texture binding unit
     constexpr auto RoughnessUnit     = 2; // the roughness texture binding unit
+    constexpr auto MetallicUnit      = 3; // the metallic texture binding unit
   }
 }

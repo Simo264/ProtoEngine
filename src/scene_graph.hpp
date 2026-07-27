@@ -12,6 +12,7 @@
 #include <vector>
 #include <variant>
 #include <optional>
+#include <functional>
 
 // Scene graphs consist of a number of scene nodes, kept together in a tree-like
 // structure - each node has a parent node, and a number of child nodes. Each
@@ -116,11 +117,11 @@ public:
  
   // mesh instance
   void set_mesh(MeshInstance instance) { m_content = std::move(instance); }
-  std::optional<MeshInstance> mesh_instance();
+  std::optional<std::reference_wrapper<MeshInstance>> mesh_instance();
 
   // lighting
   void set_light(LightInstance light) { m_content = std::move(light); }
-  std::optional<LightInstance> light_instance();
+  std::optional<std::reference_wrapper<LightInstance>> light_instance();
   auto world_light_position() const { return glm::vec3(m_world_matrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)); }
 
   auto& world_matrix() const { return m_world_matrix; }

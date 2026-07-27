@@ -9,6 +9,8 @@ out vec4 fs_out_color;
 layout(location = 0) uniform vec3 u_camera_eye;
 layout(location = 1) uniform int  u_has_texture_albedo;
 layout(location = 2) uniform int  u_has_texture_normal;
+layout(location = 3) uniform int  u_has_texture_metallic;
+layout(location = 4) uniform int  u_has_texture_roughness;
 
 layout(location = 5) uniform vec3 u_albedo;
 layout(location = 6) uniform float u_metallic;

@@ -63,8 +63,8 @@ ModelInfo import_model(const std::filesystem::path& filepath)
 
   auto aimaterial = scene->mMaterials[aimesh->mMaterialIndex];
   std::println("Material name: {}", aimaterial->GetName().C_Str());
-  std::println("Base color texture count: {}", aimaterial->GetTextureCount(aiTextureType_BASE_COLOR));
-  std::println("Diffuse texture count: {}", aimaterial->GetTextureCount(aiTextureType_DIFFUSE));
+  std::println("Albedo color texture count: {}", aimaterial->GetTextureCount(aiTextureType_BASE_COLOR));
+  std::println("Albedo texture count: {}", aimaterial->GetTextureCount(aiTextureType_DIFFUSE));
   std::println("Normal texture count: {}", aimaterial->GetTextureCount(aiTextureType_NORMALS));
   std::println("Height texture count: {}", aimaterial->GetTextureCount(aiTextureType_HEIGHT));
 
@@ -72,10 +72,9 @@ ModelInfo import_model(const std::filesystem::path& filepath)
   if (aimaterial->Get(AI_MATKEY_BASE_COLOR, base_color) == AI_SUCCESS ||
       aimaterial->Get(AI_MATKEY_COLOR_DIFFUSE, base_color) == AI_SUCCESS)
   {
-    std::println("Material base color: r={}, g={}, b={}, a={}", base_color.r, base_color.g, base_color.b, base_color.a);
-    material.surface_color = { base_color.r, base_color.g, base_color.b };
+    std::println("Material albedo color: r={}, g={}, b={}, a={}", base_color.r, base_color.g, base_color.b, base_color.a);
+    material.albedo_color = { base_color.r, base_color.g, base_color.b };
   }
-
 
   auto path = aiString{};
   if (aimaterial->GetTexture(aiTextureType_BASE_COLOR, 0, &path) == AI_SUCCESS ||
@@ -86,9 +85,9 @@ ModelInfo import_model(const std::filesystem::path& filepath)
     {
       std::println("Embedded texture base color/diffuse: {}", path.C_Str());
 
-      if(!material.tex_diffuse.is_valid())
+      if(!material.tex_albedo.is_valid())
       {
-        material.tex_diffuse = Texture::create_from_memory(
+        material.tex_albedo = Texture::create_from_memory(
           embedded_tex->pcData,
           embedded_tex->mWidth,
           TextureImageFormat::SRGB8,
@@ -101,9 +100,9 @@ ModelInfo import_model(const std::filesystem::path& filepath)
     else
     {
       std::println("External texture base color/diffuse: {}", path.C_Str());
-      if(!material.tex_diffuse.is_valid())
+      if(!material.tex_albedo.is_valid())
       {
-        material.tex_diffuse = Texture::create_from_file(
+        material.tex_albedo = Texture::create_from_file(
           filepath.parent_path() / path.C_Str(),
           TextureImageFormat::SRGB8,
           PixelDataFormat::RGB,
